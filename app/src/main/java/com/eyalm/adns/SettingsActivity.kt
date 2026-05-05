@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.DnsConstants
 import com.eyalm.adns.ui.components.ClickableCardSettings
+import com.eyalm.adns.ui.screens.ProvidersScreen
 import com.eyalm.adns.ui.theme.AdnsTheme
 import com.eyalm.adns.viewmodel.SettingsViewModel
 
@@ -95,14 +96,18 @@ class SettingsActivity : ComponentActivity() {
             }
 
             AdnsTheme {
-                Greeting2(
-                    dnsUrl = dnsUrl,
-                    onDnsUrlChange = { viewModel.setDnsUrl(it) },
-                    modifier = Modifier.fillMaxSize(),
-                    onBack = { finish() },
-                    onAddQuickTile = { viewModel.addQuickTile() },
-                    permissionLauncher = permissionLauncher
-                )
+                if (BuildConfig.DEBUG) {
+                    ProvidersScreen()
+                } else {
+                    Greeting2(
+                        dnsUrl = dnsUrl ?: "",
+                        onDnsUrlChange = { viewModel.setDnsUrl(it) },
+                        modifier = Modifier.fillMaxSize(),
+                        onBack = { finish() },
+                        onAddQuickTile = { viewModel.addQuickTile() },
+                        permissionLauncher = permissionLauncher
+                    )
+                }
             }
         }
     }

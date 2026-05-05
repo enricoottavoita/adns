@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import com.eyalm.adns.R
 import com.eyalm.adns.data.DnsRepository
+import com.eyalm.adns.data.models.DnsProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +16,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val repository = DnsRepository(application)
     private val _dnsUrl = MutableStateFlow(repository.getDnsUrl())
-    val dnsUrl: StateFlow<String> = _dnsUrl.asStateFlow()
+    val dnsUrl: StateFlow<String?> = _dnsUrl.asStateFlow()
 
     fun setDnsUrl(url: String) {
         repository.setCustomUrl(url)
@@ -59,5 +60,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         repository.updateNotification()
 
     }
+
+
+    private val _selectedProvider = MutableStateFlow(repository.getSelectedProvider())
+    val selectedProvider = _selectedProvider.asStateFlow()
+
+    fun setProvider(provider: DnsProvider, url: String?) {
+        repository.setProvider(provider.id, url)
+        _selectedProvider.value = repository.getSelectedProvider()
+    }
+
+
 
 }

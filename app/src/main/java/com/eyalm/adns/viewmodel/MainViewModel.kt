@@ -31,7 +31,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = repository.getDnsUrl()
+            initialValue = repository.getDnsUrl() ?: "" ?: ""
         )
 
     val adBlockingState: StateFlow<Boolean> = repository.getDnsStatusFlow()
@@ -66,10 +66,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val minutes = (durationMs / (1000 * 60)) % 60
         val hours = (durationMs / (1000 * 60 * 60))
         return String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
-    }
-
-    fun getHostname(): String {
-        return repository.getDnsUrl()
     }
 
     fun setDnsUrl(url: String) {
