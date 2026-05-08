@@ -15,6 +15,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.ui.screens.ShizukuActivationScreen
 import com.eyalm.adns.ui.screens.providerLogin.Login
+import com.eyalm.adns.ui.screens.providerLogin.ProfileOptionPage
 import com.eyalm.adns.ui.theme.AdnsTheme
 import com.eyalm.adns.viewmodel.ProviderLoginViewModel
 import kotlinx.coroutines.launch
@@ -40,7 +41,7 @@ class ProviderLoginActivity : ComponentActivity() {
             AdnsTheme {
 
                 val step = viewModel.currentStep
-
+                val profiles = viewModel.profiles
 
 
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -56,7 +57,13 @@ class ProviderLoginActivity : ComponentActivity() {
                         )
                         Step.SIGNUP -> TODO()
                         Step.LOADING -> ShizukuActivationScreen()
-                        Step.PROFILE -> TODO()
+                        Step.PROFILE -> ProfileOptionPage(
+                            profiles = profiles,
+                            onNextClick = { profile ->
+
+                            },
+                            onBackClick = {  }
+                        )
                         Step.SUCCESS -> TODO()
                     }
                 }

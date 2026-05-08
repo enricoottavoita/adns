@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import com.eyalm.adns.ProviderLoginActivity
 import com.eyalm.adns.data.ApiRepository
+import com.eyalm.adns.data.network.NextDnsProfile
 
 class ProviderLoginViewModel(application: Application) : AndroidViewModel(application)  {
 
@@ -15,6 +16,9 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
     private val dnsRepository = com.eyalm.adns.data.DnsRepository(application)
 
     var currentStep by mutableStateOf(ProviderLoginActivity.Step.LOGIN)
+        private set
+
+    var profiles by mutableStateOf(listOf<NextDnsProfile>())
         private set
 
     fun nextStep() {
@@ -34,10 +38,17 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
         if (providrId == "nextdns") {
             apiRepository.NextDnsLogin(email, password)
             Log.d("ProviderLoginViewModel", "Login attempt for provider $providrId with email $email")
-            val profiles = apiRepository.getNextDnsProfiles()
-            apiRepository.setNextDnsProfile(profiles.first())
+            profiles = apiRepository.getNextDnsProfiles()
+
+            nextStep()
 
         }
     }
+
+    fun setProfile() {
+
+    }
+
+
 
 }
