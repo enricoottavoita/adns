@@ -6,7 +6,9 @@ import android.content.ComponentName
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import com.eyalm.adns.R
+import com.eyalm.adns.data.ApiRepository
 import com.eyalm.adns.data.DnsRepository
+import com.eyalm.adns.data.models.DnsProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = DnsRepository(application)
+    private val apiRepository = ApiRepository(application)
+
     private val _dnsUrl = MutableStateFlow(repository.getDnsUrl())
     val dnsUrl: StateFlow<String?> = _dnsUrl.asStateFlow()
 
@@ -67,6 +71,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setProvider(providerId: String, url: String? = null) {
         repository.setProvider(providerId, url)
         _selectedProvider.value = repository.getSelectedProvider()
+    }
+
+    fun isLoggedIn(provider: DnsProvider): Boolean {
+        return apiRepository.isLoggedIn(provider)
     }
 
 

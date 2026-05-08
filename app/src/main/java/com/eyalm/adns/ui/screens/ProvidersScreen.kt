@@ -45,16 +45,13 @@ fun ProvidersScreen(
     val viewModel: SettingsViewModel = viewModel()
     val currentProvider by viewModel.selectedProvider.collectAsState()
 
+    val provider = currentProvider
 
     val customUrlText = remember {
         mutableStateOf(
-            if (currentProvider.id != "custom") "" else {
-                val provider = currentProvider
-                when (provider) {
-                    is DnsProvider.Custom -> provider.userUrl
-                    is DnsProvider.Standard -> provider.hostname
-                    is DnsProvider.Enhanced -> provider.hostname ?: ""
-                }
+            when (provider) {
+                is DnsProvider.Custom -> provider.userUrl
+                else -> ""
             }
         )
     }
@@ -109,7 +106,10 @@ fun ProvidersScreen(
                             if (!provider.isEnhanced) {
                                 viewModel.setProvider(provider.id)
                             } else {
-                                if (provider.id != currentProvider.id) {
+                                if (viewModel.isLoggedIn(provider)) {
+                                    viewModel.setProvider(provider.id)
+                                }
+                                else if (provider.id != currentProvider.id) {
                                     onEnhancedModeClick(provider.id)
                                 }
                             }

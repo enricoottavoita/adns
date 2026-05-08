@@ -22,9 +22,7 @@ sealed class DnsProvider {
         override val id: String,
         override val name: String,
         override val description: String,
-        var isLoggedIn: Boolean,
-        var currentProfile: NextDnsProfile?,
-        var hostname: String?      // dynamic from apiService
+        var currentProfile: NextDnsProfile?
     ) : DnsProvider() {
         override val isEnhanced = true
     }

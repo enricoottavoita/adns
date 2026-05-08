@@ -3,8 +3,10 @@ package com.eyalm.adns.data
 import android.content.Context
 import android.util.Log
 import android.util.Log.e
+import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.data.network.ApiClient
+import com.eyalm.adns.data.network.NextDnsCreateProfileRequest
 import com.eyalm.adns.data.network.NextDnsLoginRequest
 import com.eyalm.adns.data.network.NextDnsProfile
 
@@ -12,6 +14,13 @@ class ApiRepository(context: Context) {
 
     private val sharedPrefs = context.getSharedPreferences("adns_settings", Context.MODE_PRIVATE)
     val repository = DnsRepository(context)
+    private companion object {
+        const val NEXTDNS_COOKIE_KEY = "nextdns_cookie"
+    }
+
+    private fun getNextDnsCookie(): String? {
+        return sharedPrefs.getString(NEXTDNS_COOKIE_KEY, null)?.takeIf { it.isNotBlank() }
+    }
 
     suspend fun NextDnsLogin(email: String, password: String): Boolean {
         return try {
@@ -29,12 +38,10 @@ class ApiRepository(context: Context) {
                 }
 
                 sharedPrefs.edit()
-                    .putString("nextdns_cookie", fullCookieString.trim())
+                    .putString(NEXTDNS_COOKIE_KEY, fullCookieString.trim())
                     .apply()
 
                 Log.d("ApiRepository", "Login Success! Cookies saved: $fullCookieString")
-
-                DnsProviders.NEXTDNS.isLoggedIn = true
 
                 true
             } else {
@@ -51,10 +58,15 @@ class ApiRepository(context: Context) {
 
     }
 
-    suspend fun getNextDnsProfiles(): List<NextDnsProfile> {
-        val cookie = sharedPrefs.getString("nextdns_cookie", null)
+    fun isLoggedIn(provider: DnsProvider): Boolean {
+        return provider is DnsProvider.Enhanced && getNextDnsCookie() != null
+    }
 
-        if (cookie.isNullOrEmpty()) {
+    suspend fun getNextDnsProfiles(): List<NextDnsProfile> {
+
+        val cookie = getNextDnsCookie()
+
+        if (!isLoggedIn(DnsProviders.NEXTDNS) || cookie == null) {
             Log.e("ApiRepository", "No cookie found. User must login first.")
             return emptyList()
         }
@@ -69,8 +81,26 @@ class ApiRepository(context: Context) {
     }
 
     fun setNextDnsProfile(profile: NextDnsProfile) {
-        DnsProviders.NEXTDNS.hostname = profile.id + ".dns.nextdns.io"
-        repository.setProvider(DnsProviders.NEXTDNS.id)
+        val hostname = profile.id + ".dns.nextdns.io"
+        repository.setProvider(DnsProviders.NEXTDNS.id, hostname)
+    }
+
+    suspend fun createNextDnsProfile(name: String) {
+
+        val cookie = getNextDnsCookie()
+
+        if (!isLoggedIn(DnsProviders.NEXTDNS) || cookie == null) {
+            Log.e("ApiRepository", "No cookie found. User must login first.")
+            throw IllegalStateException("User must login first")
+        }
+
+
+        try {
+            val response = ApiClient.nextDnsApi.createProfile(cookie, NextDnsCreateProfileRequest.withName(name))
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error creating profile", e)
+        }
+
     }
 
 }

@@ -28,8 +28,6 @@ object DnsProviders {
         id = "nextdns",
         name = "NextDNS",
         description = "Connect your account to use NextDNS as a DNS provider.",
-        hostname = null,
-        isLoggedIn = false,
         currentProfile = null
     )
 

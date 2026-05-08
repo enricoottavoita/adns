@@ -18,4 +18,10 @@ interface NextDnsApi {
         @Header("Cookie") cookie: String
     ): NextDnsProfileResponse
 
+    @POST("profiles")
+    suspend fun createProfile(
+        @Header("Cookie") cookie: String,
+        @Body request: NextDnsCreateProfileRequest
+    ): Response<NextDnsProfile>
+
 }

@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.database.ContentObserver
@@ -157,7 +158,7 @@ class DnsRepository(private val context: Context) {
 
         if (provider != null) return provider
 
-        val customUrl = sharedPrefs.getString("custom_url", "") ?: "" // NOT SURE ABOUT THIS PART RECHECK LATER
+        val customUrl = sharedPrefs.getString("custom_url", "") ?: ""
         return DnsProvider.Custom(customUrl)
 
     }
@@ -176,6 +177,8 @@ class DnsRepository(private val context: Context) {
                 "Invalid DNS hostname"
             }
             edit.putString("custom_url", url)
+        } else if (providerId == "nextdns" && !url.isNullOrBlank()) {
+            edit.putString("enhanced_url", url)
         }
 
         edit.apply()
@@ -197,21 +200,27 @@ class DnsRepository(private val context: Context) {
         return when (selectedProvider) {
             is DnsProvider.Standard -> selectedProvider.hostname
             is DnsProvider.Custom -> selectedProvider.userUrl
-            is DnsProvider.Enhanced -> selectedProvider.hostname
+            is DnsProvider.Enhanced -> sharedPrefs.getString("enhanced_url", null)
         }
 
     }
 
     fun getDnsUrlFlow(): Flow<String> = callbackFlow {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "custom_url" || key == "selected_provider_id") {
-                val url = getDnsUrl() ?: throw IllegalStateException("No DNS URL configured")
-                trySend(url)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "custom_url" || key == "selected_provider_id" || key == "enhanced_url") {
+                val url = getDnsUrl()
+                if (url != null) {
+                    trySend(url)
+                }
             }
         }
         sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
-        val url = getDnsUrl() ?: throw IllegalStateException("No DNS URL configured")
-        trySend(url)
+        val url = getDnsUrl()
+        if (url != null) {
+            trySend(url)
+        } else {
+            throw IllegalStateException("No DNS URL configured")
+        }
         awaitClose {
             sharedPrefs.unregisterOnSharedPreferenceChangeListener(listener)
         }

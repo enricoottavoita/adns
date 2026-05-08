@@ -7,8 +7,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,11 +30,25 @@ import com.eyalm.adns.ui.components.StandardBottomBar
 fun ProfileOptionPage(
     profiles: List<NextDnsProfile>,
     onNextClick: (profile: NextDnsProfile) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    createProfile: (name: String) -> Unit
 ) {
     
     var selectedProfile by remember { mutableStateOf(profiles[0]) }
-    
+    val openCreateProfileDialog = remember { mutableStateOf(false) }
+
+    when {
+        openCreateProfileDialog.value -> {
+            CreateProfileDialog(
+                onDismissRequest = { openCreateProfileDialog.value = false },
+                onConfirmation = { name ->
+                    createProfile(name)
+                }
+            )
+
+        }
+    }
+
     OnboardingTemplate(
         onBackClick = onBackClick,
         bottomBarContent = {
@@ -45,12 +65,13 @@ fun ProfileOptionPage(
                     .padding(paddingValues)
                     .padding(horizontal = 16.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text("Choose your profile.")
 
                 profiles.forEach { profile ->
-                    Row() {
+                    Row(
+                    ) {
                         RadioButton(
                             selected = profile == selectedProfile,
                             onClick = { selectedProfile = profile }
@@ -58,9 +79,65 @@ fun ProfileOptionPage(
                         Text(profile.name)
                     }
                 }
+
+                Row() {
+                    TextButton(
+                        onClick = { openCreateProfileDialog.value = true }
+                    ) {
+                        Text("Create New Profile")
+                    }
+                }
             }
+        }
+    )
+}
 
 
+@Composable
+fun CreateProfileDialog(
+    onDismissRequest: () -> Unit,
+    onConfirmation: (name: String) -> Unit,
+) {
+
+    var name by remember { mutableStateOf("") }
+    var isValid by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        icon = {
+            Icon(Icons.Default.Add, contentDescription = "Add Icon")
+        },
+        title = {
+            Text(text = "Create Profile")
+        },
+        text = {
+            Text(text = "How would you like to name your profile?")
+            TextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Profile Name") },
+
+            )
+        },
+        onDismissRequest = {
+            onDismissRequest()
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirmation(name) // TODO: Error handling: validate name, make sure it doesn't already exist
+                }
+            ) {
+                Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    onDismissRequest()
+                }
+            ) {
+                Text("Dismiss")
+            }
         }
     )
 }

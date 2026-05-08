@@ -1,6 +1,7 @@
 package com.eyalm.adns
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,6 +17,7 @@ import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.ui.screens.ShizukuActivationScreen
 import com.eyalm.adns.ui.screens.providerLogin.Login
 import com.eyalm.adns.ui.screens.providerLogin.ProfileOptionPage
+import com.eyalm.adns.ui.screens.providerLogin.SuccessLoginScreen
 import com.eyalm.adns.ui.theme.AdnsTheme
 import com.eyalm.adns.viewmodel.ProviderLoginViewModel
 import kotlinx.coroutines.launch
@@ -50,7 +52,8 @@ class ProviderLoginActivity : ComponentActivity() {
                             provider = provider,
                             onNextClick = { email, password ->
                                 lifecycleScope.launch {
-                                    viewModel.ProviderLogin(email, password, provider.id)
+                                    viewModel.nextStep()
+                                    viewModel.providerLogin(email, password, provider.id)
                                 }
                             },
                             onBackClick = {}
@@ -60,11 +63,26 @@ class ProviderLoginActivity : ComponentActivity() {
                         Step.PROFILE -> ProfileOptionPage(
                             profiles = profiles,
                             onNextClick = { profile ->
+                                viewModel.setProfile(profile)
+                            },
+                            onBackClick = {
 
                             },
-                            onBackClick = {  }
+                            createProfile = { name ->
+                                lifecycleScope.launch {
+                                    viewModel.createProfile(name)
+                                }
+
+                            }
                         )
-                        Step.SUCCESS -> TODO()
+                        Step.SUCCESS -> {
+                            Log.d("ProviderLoginActivity", "Success screen")
+                            SuccessLoginScreen(
+                                onFinishClicked = {
+                                    finish()
+                                }
+                            )
+                        }
                     }
                 }
             }

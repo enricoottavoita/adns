@@ -19,3 +19,29 @@ data class NextDnsProfile(
     @SerializedName("name") val name: String
 )
 
+// Request for creating a new profile
+data class NextDnsCreateProfileRequest(
+    @SerializedName("name") val name: String,
+    @SerializedName("security") val security: Map<String, Boolean> = mapOf(
+        "threatIntelligenceFeeds" to true,
+        "googleSafeBrowsing" to true,
+        "cryptojacking" to true,
+        "idnHomographs" to true,
+        "typosquatting" to true,
+        "dga" to true,
+        "csam" to true
+    ),
+    @SerializedName("privacy") val privacy: Map<String, Any> = mapOf(
+        "blocklists" to listOf(mapOf("id" to "nextdns-recommended")),
+        "disguisedTrackers" to true
+    ),
+    @SerializedName("settings") val settings: Map<String, Map<String, Boolean>> = mapOf(
+        "logs" to mapOf("enabled" to true),
+        "performance" to mapOf("ecs" to true)
+    )
+) {
+    companion object {
+        fun withName(name: String) = NextDnsCreateProfileRequest(name = name)
+    }
+}
+
