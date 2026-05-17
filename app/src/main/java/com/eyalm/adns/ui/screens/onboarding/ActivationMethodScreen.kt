@@ -94,9 +94,9 @@ fun ActivationMethodScreen(
                         shizukuPressed = !shizukuPressed
                         adbPressed = false
                     },
-                    modifier = Modifier.padding(bottom = 16.dp)
                 )
-
+            }
+            item {
                 SelectableCard(
                     title = "ADB Shell",
                     description = "Requires ADB shell access. For advanced users.",

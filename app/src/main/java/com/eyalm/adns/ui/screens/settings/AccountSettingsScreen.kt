@@ -36,7 +36,6 @@ fun AccountSettingsScreen(
 ) {
     val viewModel: SettingsViewModel = viewModel()
     var email by remember { mutableStateOf<String?>(null) }
-    val blocklists = viewModel.blocklists ?: emptyList()
 
 
     LaunchedEffect(Unit) {
