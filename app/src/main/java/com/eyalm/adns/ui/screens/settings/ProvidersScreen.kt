@@ -1,4 +1,4 @@
-package com.eyalm.adns.ui.screens
+package com.eyalm.adns.ui.screens.settings
 
 import android.util.Patterns
 import androidx.compose.foundation.layout.Arrangement

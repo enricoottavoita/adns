@@ -21,11 +21,11 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.eyalm.adns.ui.screens.ActivationMethodScreen
-import com.eyalm.adns.ui.screens.AdbActivationScreen
-import com.eyalm.adns.ui.screens.ShizukuActivationScreen
-import com.eyalm.adns.ui.screens.SuccessScreen
-import com.eyalm.adns.ui.screens.WelcomeScreen
+import com.eyalm.adns.ui.screens.onboarding.ActivationMethodScreen
+import com.eyalm.adns.ui.screens.onboarding.AdbActivationScreen
+import com.eyalm.adns.ui.screens.onboarding.ShizukuActivationScreen
+import com.eyalm.adns.ui.screens.onboarding.SuccessScreen
+import com.eyalm.adns.ui.screens.onboarding.WelcomeScreen
 import com.eyalm.adns.ui.theme.AdnsTheme
 import com.eyalm.adns.viewmodel.OnboardingViewModel
 

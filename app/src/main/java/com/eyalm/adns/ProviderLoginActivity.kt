@@ -14,7 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.models.DnsProviders
-import com.eyalm.adns.ui.screens.ShizukuActivationScreen
+import com.eyalm.adns.ui.screens.onboarding.ShizukuActivationScreen
 import com.eyalm.adns.ui.screens.providerLogin.Login
 import com.eyalm.adns.ui.screens.providerLogin.ProfileOptionPage
 import com.eyalm.adns.ui.screens.providerLogin.SuccessLoginScreen

@@ -49,7 +49,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,8 +68,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.DnsConstants
 import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.ui.components.ClickableCardSettings
-import com.eyalm.adns.ui.screens.AccountSettingsScreen
-import com.eyalm.adns.ui.screens.ProvidersScreen
+import com.eyalm.adns.ui.screens.settings.AccountSettingsScreen
+import com.eyalm.adns.ui.screens.settings.ProvidersScreen
 import com.eyalm.adns.ui.theme.AdnsTheme
 import com.eyalm.adns.viewmodel.SettingsViewModel
 import com.eyalm.adns.viewmodel.SettingsViewModel.Page
