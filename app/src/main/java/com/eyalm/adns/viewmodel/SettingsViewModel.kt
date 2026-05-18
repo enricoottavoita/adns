@@ -90,6 +90,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _selectedProvider.value = repository.getSelectedProvider()
     }
 
+    fun refreshProvider() {
+        _selectedProvider.value = repository.getSelectedProvider()
+    }
+
     fun isLoggedIn(provider: DnsProvider): Boolean {
         return apiRepository.isLoggedIn(provider)
     }
@@ -125,8 +129,27 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    var profiles by mutableStateOf<List<NextDnsProfile>?>(null)
+
     suspend fun getProfiles(): List<NextDnsProfile> {
         return apiRepository.getNextDnsProfiles()
+    }
+
+    suspend fun getCurrentProfile(): NextDnsProfile {
+        val profileId = apiRepository.getCurrentNextDnsProfileId()
+        val profiles = apiRepository.getNextDnsProfiles()
+        return profiles.first { it.id == profileId }
+    }
+
+    fun setProfile(profile: NextDnsProfile) {
+        apiRepository.setNextDnsProfile(profile)
+    }
+
+    fun createProfile(name: String) {
+        viewModelScope.launch {
+            apiRepository.createNextDnsProfile(name)
+            profiles = getProfiles()
+        }
     }
 
 }

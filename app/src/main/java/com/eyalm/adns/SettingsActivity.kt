@@ -15,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -77,13 +78,15 @@ import com.eyalm.adns.viewmodel.SettingsViewModel
 import com.eyalm.adns.viewmodel.SettingsViewModel.Page
 
 class SettingsActivity : ComponentActivity() {
+    private val viewModel: SettingsViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val viewModel: SettingsViewModel = viewModel()
             val dnsUrl by viewModel.dnsUrl.collectAsState()
             val page by viewModel.page.collectAsState()
+            val selectedProvider by viewModel.selectedProvider.collectAsState()
 
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestPermission()
@@ -138,18 +141,23 @@ class SettingsActivity : ComponentActivity() {
                     Page.ACCOUNT_SETTINGS -> {
                         AccountSettingsScreen(
                             onBack = { viewModel.setPage(Page.MAIN) },
-                            provider = viewModel.selectedProvider.collectAsState().value
+                            provider = selectedProvider
                         )
                     }
                     Page.BLOCKLISTS -> {
                         BlocklistsScreen(
                             onBack = { viewModel.setPage(Page.MAIN) },
-                            provider = viewModel.selectedProvider.collectAsState().value
+                            provider = selectedProvider
                         )
                     }
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshProvider()
     }
 }
 
@@ -164,7 +172,7 @@ fun Greeting2(
     onPageChange: (Page) -> Unit = {}
 ) {
     val viewModel: SettingsViewModel = viewModel()
-    val provider = viewModel.selectedProvider
+    val provider by viewModel.selectedProvider.collectAsState()
     val context = LocalContext.current
     Scaffold(
         modifier = modifier,
@@ -198,11 +206,11 @@ fun Greeting2(
                 modifier = Modifier.padding(top = 48.dp, bottom = 16.dp),
                 fontSize = 32.sp,
             ) }
-            if (provider.value is DnsProvider.Enhanced) {
+            if (provider is DnsProvider.Enhanced) {
                 item {
                     ClickableCardSettings(
-                        title = "${provider.collectAsState().value.name} Settings",
-                        description = "Change account settings for ${provider.collectAsState().value.name}",
+                        title = "${provider.name} Settings",
+                        description = "Change account settings for ${provider.name}",
                         onClick = {
                             onPageChange(Page.ACCOUNT_SETTINGS)
                         },
@@ -211,8 +219,8 @@ fun Greeting2(
                 }
                 item {
                     ClickableCardSettings(
-                        title = "${provider.collectAsState().value.name} Blocklists",
-                        description = "Change blocklists for ${provider.collectAsState().value.name}",
+                        title = "${provider.name} Blocklists",
+                        description = "Change blocklists for ${provider.name}",
                         onClick = {
                             onPageChange(Page.BLOCKLISTS)
                         },

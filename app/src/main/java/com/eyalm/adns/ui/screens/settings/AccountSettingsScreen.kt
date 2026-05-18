@@ -1,9 +1,11 @@
 package com.eyalm.adns.ui.screens.settings
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,6 +16,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -25,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,6 +36,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.ui.components.ProfilesList
+import com.eyalm.adns.ui.screens.providerLogin.CreateProfileDialog
 import com.eyalm.adns.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -42,14 +47,28 @@ fun AccountSettingsScreen(
 ) {
     val viewModel: SettingsViewModel = viewModel()
     var email by remember { mutableStateOf<String?>(null) }
-    var profiles by remember { mutableStateOf<List<NextDnsProfile>?>(null) }
+    var selectedProfile by remember { mutableStateOf<NextDnsProfile?>(null) }
+    var openCreateProfileDialog by remember { mutableStateOf(false) }
 
 
     LaunchedEffect(Unit) {
         viewModel.getBlocklists()
         email = viewModel.getEmail()
-        profiles = viewModel.getProfiles()
-        Log.d("test", profiles.toString())
+        viewModel.profiles = viewModel.getProfiles()
+        selectedProfile = viewModel.getCurrentProfile()
+    }
+
+    when {
+        openCreateProfileDialog -> {
+            CreateProfileDialog(
+                onDismissRequest = { openCreateProfileDialog = false },
+                onConfirmation = { name ->
+                    openCreateProfileDialog = false
+                    viewModel.createProfile(name)
+                }
+            )
+
+        }
     }
 
 
@@ -88,37 +107,61 @@ fun AccountSettingsScreen(
                 )
             }
 
-            item {
-                Text(
-                    "Currently logged in to ${email}"
-                )
-            }
-
-            item {
-                Button(
-                    onClick = {
-                    }
-                ) {
-                    Text("Logout")
-                }
-            }
-            profiles?.let { currentProfiles ->
+            if (selectedProfile == null) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    Loading()
+                }
+            } else {
+                item {
+                    Text(
+                        "Currently logged in to ${email}"
+                    )
+                }
+
+                item {
+                    Button(
+                        onClick = {
+                        }
                     ) {
-                        ProfilesList(
-                            profiles = currentProfiles,
-                            selectedProfile = currentProfiles.firstOrNull(),
-                            onProfileSelected = { }, // TODO add functionality
-                            onCreateProfileClick = { },
-                            modifier = Modifier.padding(16.dp)
-                        )
+                        Text("Logout")
+                    }
+                }
+                viewModel.profiles?.let { currentProfiles ->
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            ProfilesList(
+                                profiles = currentProfiles,
+                                selectedProfile = selectedProfile,
+                                onProfileSelected = {
+                                    selectedProfile = it
+                                    viewModel.setProfile(it)
+                                },
+                                onCreateProfileClick = {
+                                    openCreateProfileDialog = true
+                                },
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
                     }
                 }
             }
 
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun Loading() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        LoadingIndicator(modifier = Modifier.size(100.dp))
     }
 }

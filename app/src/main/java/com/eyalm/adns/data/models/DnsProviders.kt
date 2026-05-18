@@ -32,10 +32,10 @@ object DnsProviders {
 
 
     val getAllProviders = listOf(
+        NEXTDNS,
         ADGUARD,
         GOOGLE,
-        CLOUDFLARE,
-        NEXTDNS
+        CLOUDFLARE
     )
 
     fun getProviderByHostname(hostname: String): DnsProvider {
