@@ -37,6 +37,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var dnsStats by mutableStateOf<NextDnsAnalytics?>(null)
         private set
 
+    var dnsProvider by mutableStateOf<DnsProvider?>(null)
+        private set
+
 
     val dnsUrlFlow: StateFlow<String> = repository.getDnsUrlFlow()
         .stateIn(
@@ -94,6 +97,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val stats = apiRepository.getNextDnsStats()
 
         dnsStats = stats
+        dnsProvider = provider
 
         return provider
 

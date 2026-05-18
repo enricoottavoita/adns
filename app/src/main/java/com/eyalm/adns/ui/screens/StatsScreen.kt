@@ -1,5 +1,6 @@
 package com.eyalm.adns.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -44,8 +45,9 @@ fun StatsScreen(
     viewModel: MainViewModel = viewModel()
 ) {
     val stats = viewModel.dnsStats
+    val cachedProvider = viewModel.dnsProvider
     val error = remember { mutableStateOf<String?>(null) }
-    val provider = remember { mutableStateOf<DnsProvider?>(null) }
+    val provider = remember { mutableStateOf<DnsProvider?>(cachedProvider) }
     val isSupported = remember { mutableStateOf<Boolean>(true) }
 
     LaunchedEffect(Unit) { // TODO: Move this to outside of the screen
@@ -61,11 +63,12 @@ fun StatsScreen(
         }
     }
 
-    StatsScreenContent(
+    StatsScreenContent( // TODO: after switching to a provider, this still shows the previous stats.
         stats = stats,
         error = error.value,
         paddingValues = paddingValues,
-        provider = provider.value
+        provider = provider.value,
+        isSupported = isSupported.value
     )
 }
 
@@ -103,6 +106,8 @@ fun StatsScreenContent(
             Spacer(modifier = Modifier.weight(1f))
         } else if (provider != null) {
             StatsCards(stats, provider)
+        } else {
+            Log.d("test0", "test")
         }
 
     }
