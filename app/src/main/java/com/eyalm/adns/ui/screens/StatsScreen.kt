@@ -22,7 +22,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -45,30 +44,15 @@ fun StatsScreen(
     viewModel: MainViewModel = viewModel()
 ) {
     val stats = viewModel.dnsStats
-    val cachedProvider = viewModel.dnsProvider
+    val provider = viewModel.dnsProvider
     val error = remember { mutableStateOf<String?>(null) }
-    val provider = remember { mutableStateOf<DnsProvider?>(cachedProvider) }
-    val isSupported = remember { mutableStateOf<Boolean>(true) }
-
-    LaunchedEffect(Unit) { // TODO: Move this to outside of the screen
-        if (viewModel.dnsStats == null) {
-            try {
-                provider.value = viewModel.getStats()
-            } catch (e: Exception) {
-                error.value = e.message ?: "Failed to load stats"
-                if (e.message?.contains("must be logged") == true) {
-                    isSupported.value = false
-                }
-            }
-        }
-    }
 
     StatsScreenContent( // TODO: after switching to a provider, this still shows the previous stats.
         stats = stats,
         error = error.value,
         paddingValues = paddingValues,
-        provider = provider.value,
-        isSupported = isSupported.value
+        provider = provider,
+        isSupported = if (provider != null) provider is DnsProvider.Enhanced else true // TODO fix stuck at loading
     )
 }
 

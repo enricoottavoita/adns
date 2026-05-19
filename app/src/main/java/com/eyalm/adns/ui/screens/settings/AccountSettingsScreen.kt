@@ -1,5 +1,6 @@
 package com.eyalm.adns.ui.screens.settings
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.models.DnsProvider
-import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.ui.components.ProfilesList
 import com.eyalm.adns.ui.screens.providerLogin.CreateProfileDialog
 import com.eyalm.adns.viewmodel.SettingsViewModel
@@ -118,6 +118,8 @@ fun AccountSettingsScreen(
                 item {
                     Button(
                         onClick = {
+                            viewModel.logout()
+                            Log.d("logout", "loggedout")
                         }
                     ) {
                         Text("Logout")

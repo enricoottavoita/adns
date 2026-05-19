@@ -257,4 +257,13 @@ class ApiRepository(context: Context) {
 
     }
 
+    fun nextDnsLogOut() {
+
+        sharedPrefs.edit()
+            .remove(NEXTDNS_COOKIE_KEY)
+            .apply()
+
+        repository.setProvider(DnsProviders.ADGUARD.id)
+    }
+
 }

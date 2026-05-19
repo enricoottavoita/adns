@@ -41,7 +41,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.ui.screens.HomeScreen
 import com.eyalm.adns.ui.screens.SettingsTabRouter
 import com.eyalm.adns.ui.screens.StatsScreen
@@ -49,11 +51,13 @@ import com.eyalm.adns.ui.screens.UpdateDialog
 import com.eyalm.adns.ui.theme.AdnsTheme
 import com.eyalm.adns.viewmodel.MainViewModel
 import com.eyalm.adns.viewmodel.SettingsViewModel
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     private fun handleShortcutIntent(intent: Intent?) {
         if (intent?.action == "com.eyalm.adns.TOGGLE_ACTION") {
@@ -64,6 +68,29 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleShortcutIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch {
+            settingsViewModel.refreshProvider()
+            if (settingsViewModel.selectedProvider.value is DnsProvider.Enhanced) {
+                settingsViewModel.getBlocklists()
+                settingsViewModel.email = settingsViewModel.getEmail()
+                settingsViewModel.profiles = settingsViewModel.getProfiles()
+                settingsViewModel.currentProfile = settingsViewModel.getCurrentProfile()
+            }
+            if (viewModel.dnsStats == null) {
+                try {
+                    viewModel.getStats()
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error getting stats", e)
+
+                }
+            }
+        }
+
+
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,7 +111,6 @@ class MainActivity : ComponentActivity() {
                 val isEnabled by viewModel.adBlockingState.collectAsState()
                 val runningTime by viewModel.runningTimeFlow.collectAsState()
                 val server by viewModel.dnsUrlFlow.collectAsState()
-                val settingsViewModel: SettingsViewModel = viewModel()
                 val showDialog = remember { mutableStateOf(false) }
                 val settingsPage by settingsViewModel.page.collectAsState()
 

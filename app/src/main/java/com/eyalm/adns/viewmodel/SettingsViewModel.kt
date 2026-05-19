@@ -155,4 +155,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun logout() {
+        apiRepository.nextDnsLogOut()
+        setPage(Page.MAIN)
+        refreshProvider()
+    }
+
 }
