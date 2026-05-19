@@ -46,15 +46,12 @@ fun AccountSettingsScreen(
     provider: DnsProvider
 ) {
     val viewModel: SettingsViewModel = viewModel()
-    var email by remember { mutableStateOf<String?>(null) }
-    var selectedProfile by remember { mutableStateOf<NextDnsProfile?>(null) }
+    val email = viewModel.email
+    var selectedProfile by remember { mutableStateOf(viewModel.currentProfile) }
     var openCreateProfileDialog by remember { mutableStateOf(false) }
 
 
     LaunchedEffect(Unit) {
-        viewModel.getBlocklists()
-        email = viewModel.getEmail()
-        viewModel.profiles = viewModel.getProfiles()
         selectedProfile = viewModel.getCurrentProfile()
     }
 

@@ -66,6 +66,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.DnsConstants
 import com.eyalm.adns.data.models.DnsProvider
@@ -76,6 +77,7 @@ import com.eyalm.adns.ui.screens.settings.ProvidersScreen
 import com.eyalm.adns.ui.theme.AdnsTheme
 import com.eyalm.adns.viewmodel.SettingsViewModel
 import com.eyalm.adns.viewmodel.SettingsViewModel.Page
+import kotlinx.coroutines.launch
 
 class SettingsActivity : ComponentActivity() {
     private val viewModel: SettingsViewModel by viewModels()
@@ -158,6 +160,15 @@ class SettingsActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshProvider()
+        lifecycleScope.launch {
+            if (viewModel.selectedProvider.value is DnsProvider.Enhanced) {
+                viewModel.getBlocklists()
+                viewModel.email = viewModel.getEmail()
+                viewModel.profiles = viewModel.getProfiles()
+                viewModel.currentProfile = viewModel.getCurrentProfile()
+            }
+        }
+
     }
 }
 

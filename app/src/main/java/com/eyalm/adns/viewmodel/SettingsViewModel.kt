@@ -130,6 +130,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     var profiles by mutableStateOf<List<NextDnsProfile>?>(null)
+    var email by mutableStateOf<String?>(null)
+    var currentProfile by mutableStateOf<NextDnsProfile?>(null)
+
 
     suspend fun getProfiles(): List<NextDnsProfile> {
         return apiRepository.getNextDnsProfiles()
