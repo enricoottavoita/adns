@@ -59,4 +59,21 @@ interface NextDnsApi {
         @Path("blocklistId") blocklistId: String
     ): Response<Unit>
 
+    @GET("profiles/{profileId}/analytics/status;series")
+    suspend fun getStatsGraph(
+        @Header("Cookie") cookie: String,
+        @Path("profileId") profileId: String,
+        @Query("from") period: String,
+        @Query("alignment") alignment: String = "start",
+        @Query("timezone") timezone: String
+    ): NextDnsStatsGraphResponse
+
+    @GET("profiles/{profileId}/analytics/domains") // ?status=default%2Callowed&from=-30d&limit=6
+    suspend fun getDomains(
+        @Header("Cookie") cookie: String,
+        @Path("profileId") profileId: String,
+        @Query("status") status: String, // "default,allowed," or "blocked"
+        @Query("from") period: String,
+        @Query("limit") limit: Int
+    )
 }
