@@ -9,8 +9,10 @@ import com.eyalm.adns.data.network.ApiClient
 import com.eyalm.adns.data.network.NextDnsAnalytics
 import com.eyalm.adns.data.network.NextDnsBlocklistData
 import com.eyalm.adns.data.network.NextDnsCreateProfileRequest
+import com.eyalm.adns.data.network.NextDnsDomainsResponse
 import com.eyalm.adns.data.network.NextDnsLoginRequest
 import com.eyalm.adns.data.network.NextDnsProfile
+import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
 import com.eyalm.adns.data.network.NextDnsUpdateBlocklistsRequest
 
 data class Blocklist(
@@ -257,6 +259,31 @@ class ApiRepository(context: Context) {
 
     }
 
+    suspend fun getNextDnsStatsGraph(period: String = "-30d"): NextDnsStatsGraphResponse? {
+        val profileId = getCurrentNextDnsProfileId()
+        val cookie = getNextDnsCookie()
+        if (profileId == null || cookie == null) return null
+        return try {
+            val tz = java.util.TimeZone.getDefault().id
+            ApiClient.nextDnsApi.getStatsGraph(cookie, profileId, period, "start", tz)
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error fetching stats graph", e)
+            null
+        }
+    }
+
+    suspend fun getNextDnsDomains(status: String, period: String = "-30d", limit: Int = 6): NextDnsDomainsResponse? {
+        val profileId = getCurrentNextDnsProfileId()
+        val cookie = getNextDnsCookie()
+        if (profileId == null || cookie == null) return null
+        return try {
+            ApiClient.nextDnsApi.getDomains(cookie, profileId, status, period, limit)
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error fetching domains ($status)", e)
+            null
+        }
+    }
+
     fun nextDnsLogOut() {
 
         sharedPrefs.edit()
@@ -265,5 +292,7 @@ class ApiRepository(context: Context) {
 
         repository.setProvider(DnsProviders.ADGUARD.id)
     }
+
+
 
 }

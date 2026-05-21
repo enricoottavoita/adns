@@ -75,5 +75,13 @@ interface NextDnsApi {
         @Query("status") status: String, // "default,allowed," or "blocked"
         @Query("from") period: String,
         @Query("limit") limit: Int
-    )
+    ): NextDnsDomainsResponse
+
+
+
+
+
+
+
+
 }
