@@ -109,3 +109,9 @@ data class NextDnsDomainData(
     @SerializedName("domain") val domain: String,
     @SerializedName("queries") val queries: Int
 )
+
+
+fun String.toHexId(): String {
+    val hex = this.toByteArray(Charsets.UTF_8).joinToString("") { "%02x".format(it) }
+    return "hex:$hex"
+}

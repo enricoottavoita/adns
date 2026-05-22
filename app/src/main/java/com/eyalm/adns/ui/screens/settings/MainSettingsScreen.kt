@@ -19,9 +19,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BroadcastOnPersonal
+import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SettingsSuggest
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -152,6 +156,38 @@ fun MainSettingsScreen(
                     title = "Add the quick settings tile",
                     description = "Add the quick settings tile to your device",
                     icon = Icons.Filled.SettingsSuggest
+                )
+            }
+            item {
+                ClickableCardSettings(
+                    title = "Security",
+                    description = "Threat protection, DNS rebinding, TLDs",
+                    onClick = { onPageChange(Page.SECURITY) },
+                    icon = Icons.Filled.Security
+                )
+            }
+            item {
+                ClickableCardSettings(
+                    title = "Privacy",
+                    description = "Blocklists, trackers, affiliate links",
+                    onClick = { onPageChange(Page.PRIVACY) },
+                    icon = Icons.Filled.PrivacyTip
+                )
+            }
+            item {
+                ClickableCardSettings(
+                    title = "Parental Control",
+                    description = "SafeSearch, blocked apps, categories",
+                    onClick = { onPageChange(Page.PARENTAL_CONTROL) },
+                    icon = Icons.Filled.FamilyRestroom
+                )
+            }
+            item {
+                ClickableCardSettings(
+                    title = "Profile Settings",
+                    description = "Logs, performance, block page",
+                    onClick = { onPageChange(Page.SETTINGS_PAGE) },
+                    icon = Icons.Filled.Tune
                 )
             }
 

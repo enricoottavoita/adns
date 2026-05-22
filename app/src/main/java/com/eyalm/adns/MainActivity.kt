@@ -43,6 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.eyalm.adns.data.Locales
 import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.ui.screens.HomeScreen
 import com.eyalm.adns.ui.screens.SettingsTabRouter
@@ -94,7 +95,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val context = this@MainActivity
+        val context = applicationContext
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
@@ -105,6 +106,7 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         handleShortcutIntent(intent)
+        Locales.init(context)
 
         setContent {
             AdnsTheme {

@@ -14,6 +14,8 @@ import com.eyalm.adns.data.network.NextDnsLoginRequest
 import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
 import com.eyalm.adns.data.network.NextDnsUpdateBlocklistsRequest
+import com.eyalm.adns.data.network.toHexId
+import com.google.gson.JsonObject
 
 data class Blocklist(
     val id: String,
@@ -163,6 +165,133 @@ class ApiRepository(context: Context) {
 
     }
 
+
+
+    suspend fun getNextDnsStatsGraph(period: String = "-30d"): NextDnsStatsGraphResponse? {
+        val profileId = getCurrentNextDnsProfileId()
+        val cookie = getNextDnsCookie()
+        if (profileId == null || cookie == null) return null
+        return try {
+            val tz = java.util.TimeZone.getDefault().id
+            ApiClient.nextDnsApi.getStatsGraph(cookie, profileId, period, "start", tz)
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error fetching stats graph", e)
+            null
+        }
+    }
+
+    suspend fun getNextDnsDomains(status: String, period: String = "-30d", limit: Int = 6): NextDnsDomainsResponse? {
+        val profileId = getCurrentNextDnsProfileId()
+        val cookie = getNextDnsCookie()
+        if (profileId == null || cookie == null) return null
+        return try {
+            ApiClient.nextDnsApi.getDomains(cookie, profileId, status, period, limit)
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error fetching domains ($status)", e)
+            null
+        }
+    }
+
+    fun nextDnsLogOut() {
+
+        sharedPrefs.edit()
+            .remove(NEXTDNS_COOKIE_KEY)
+            .apply()
+
+        repository.setProvider(DnsProviders.ADGUARD.id)
+    }
+
+
+    // new generic methods
+
+    private fun requireAuth(): Pair<String, String> {
+        val cookie = getNextDnsCookie()
+            ?: throw IllegalStateException("Not logged in")
+        val profileId = getCurrentNextDnsProfileId()
+            ?: throw IllegalStateException("No profile selected")
+        return cookie to profileId
+    }
+
+    suspend fun getPageSettings(page: String): JsonObject? {
+        return try {
+            val (cookie, profileId) = requireAuth()
+            val response = ApiClient.nextDnsApi.getPageSettings(cookie, profileId, page)
+            response.getAsJsonObject("data")
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error fetching $page settings", e)
+            null
+        }
+    }
+
+    suspend fun patchPageSettings(
+        page: String,
+        payload: Map<String, Any>
+    ): Boolean {
+        return try {
+            val (cookie, profileId) = requireAuth()
+            val response = ApiClient.nextDnsApi.patchPageSettings(
+                cookie, profileId, page, payload
+            )
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error patching $page", e)
+            false
+        }
+    }
+
+    suspend fun getActiveListItems(page: String, feat: String): List<String> {
+        return try {
+            val (cookie, profileId) = requireAuth()
+            val response = ApiClient.nextDnsApi.getActiveListItems(
+                cookie, profileId, page, feat
+            )
+            val dataArray = response.getAsJsonArray("data")
+            dataArray.map { it.asJsonObject.get("id").asString }
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error fetching active $page/$feat", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getAvailableCatalog(page: String, feat: String): JsonObject? {
+        return try {
+            val (cookie, _) = requireAuth()
+            ApiClient.nextDnsApi.getAvailableCatalog(cookie, page, feat)
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error fetching catalog $page/$feat", e)
+            null
+        }
+    }
+
+    suspend fun addListItem(page: String, feat: String, itemId: String): Boolean {
+        return try {
+            val (cookie, profileId) = requireAuth()
+            val response = ApiClient.nextDnsApi.addListItem(
+                cookie, profileId, page, feat, mapOf("id" to itemId)
+            )
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error adding $itemId to $page/$feat", e)
+            false
+        }
+    }
+
+    suspend fun removeListItem(page: String, feat: String, itemId: String): Boolean {
+        return try {
+            val (cookie, profileId) = requireAuth()
+            val response = ApiClient.nextDnsApi.removeListItem(
+                cookie, profileId, page, feat, itemId.toHexId()
+            )
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error removing $itemId from $page/$feat", e)
+            false
+        }
+    }
+
+
+
+    // old
     suspend fun getNextDnsBlocklists(): List<Blocklist> {
         val cookie = getNextDnsCookie()
         if (!isLoggedIn(DnsProviders.NEXTDNS) || cookie == null) {
@@ -259,39 +388,7 @@ class ApiRepository(context: Context) {
 
     }
 
-    suspend fun getNextDnsStatsGraph(period: String = "-30d"): NextDnsStatsGraphResponse? {
-        val profileId = getCurrentNextDnsProfileId()
-        val cookie = getNextDnsCookie()
-        if (profileId == null || cookie == null) return null
-        return try {
-            val tz = java.util.TimeZone.getDefault().id
-            ApiClient.nextDnsApi.getStatsGraph(cookie, profileId, period, "start", tz)
-        } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching stats graph", e)
-            null
-        }
-    }
 
-    suspend fun getNextDnsDomains(status: String, period: String = "-30d", limit: Int = 6): NextDnsDomainsResponse? {
-        val profileId = getCurrentNextDnsProfileId()
-        val cookie = getNextDnsCookie()
-        if (profileId == null || cookie == null) return null
-        return try {
-            ApiClient.nextDnsApi.getDomains(cookie, profileId, status, period, limit)
-        } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching domains ($status)", e)
-            null
-        }
-    }
-
-    fun nextDnsLogOut() {
-
-        sharedPrefs.edit()
-            .remove(NEXTDNS_COOKIE_KEY)
-            .apply()
-
-        repository.setProvider(DnsProviders.ADGUARD.id)
-    }
 
 
 

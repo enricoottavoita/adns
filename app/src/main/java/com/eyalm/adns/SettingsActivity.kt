@@ -124,6 +124,7 @@ class SettingsActivity : ComponentActivity() {
                             provider = selectedProvider
                         )
                     }
+                    else -> {}
                 }
             }
         }
