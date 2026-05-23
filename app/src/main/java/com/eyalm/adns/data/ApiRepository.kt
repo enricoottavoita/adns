@@ -3,17 +3,14 @@ package com.eyalm.adns.data
 import android.content.Context
 import android.util.Log
 import android.util.Log.e
-import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.data.network.ApiClient
 import com.eyalm.adns.data.network.NextDnsAnalytics
-import com.eyalm.adns.data.network.NextDnsBlocklistData
 import com.eyalm.adns.data.network.NextDnsCreateProfileRequest
 import com.eyalm.adns.data.network.NextDnsDomainsResponse
 import com.eyalm.adns.data.network.NextDnsLoginRequest
 import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
-import com.eyalm.adns.data.network.NextDnsUpdateBlocklistsRequest
 import com.eyalm.adns.data.network.toHexId
 import com.google.gson.JsonObject
 
@@ -27,17 +24,12 @@ data class Blocklist(
     val isEnabled: Boolean
 )
 
-class ApiRepository(context: Context) {
+class ApiRepository(private val context: Context) {
 
     private val sharedPrefs = context.getSharedPreferences("adns_settings", Context.MODE_PRIVATE)
     val repository = DnsRepository(context)
-    private companion object {
-        const val NEXTDNS_COOKIE_KEY = "nextdns_cookie"
-    }
+    val keyManager = TokenManager(context)
 
-    private fun getNextDnsCookie(): String? {
-        return sharedPrefs.getString(NEXTDNS_COOKIE_KEY, null)?.takeIf { it.isNotBlank() }
-    }
 
     suspend fun NextDnsLogin(email: String, password: String): Boolean {
         return try {
@@ -53,13 +45,19 @@ class ApiRepository(context: Context) {
                     val coreCookie = cookieLine.substringBefore(";")
                     fullCookieString += "$coreCookie; "
                 }
-
+                /**
                 sharedPrefs.edit()
-                    .putString(NEXTDNS_COOKIE_KEY, fullCookieString.trim())
-                    .apply()
+                .putString(NEXTDNS_COOKIE_KEY, fullCookieString.trim())
+                .apply()
+                 */
 
-                Log.d("ApiRepository", "Login Success! Cookies saved: $fullCookieString")
 
+                val apiKey = ApiClient.nextDnsApi.createApiKey(fullCookieString.trim()).body()?.key
+                    ?: throw IllegalStateException("Failed to retrieve API key after login")
+                keyManager.saveApiKey(apiKey)
+                keyManager.saveEmail(email)
+                Log.d("ApiRepository", "Login successful, API key saved securely")
+                Log.d("ApiRepository", "API key: $apiKey")
                 true
             } else {
                 e("ApiRepository", "Login Failed: ${response.code()} - ${response.message()}")
@@ -68,7 +66,7 @@ class ApiRepository(context: Context) {
 
 
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Network Error during login", e)
+            e("ApiRepository", "Network Error during login", e)
 
             false
         }
@@ -76,7 +74,7 @@ class ApiRepository(context: Context) {
     }
 
     fun getCurrentNextDnsProfileId(): String? {
-        val url = sharedPrefs.getString("enhanced_url", null);
+        val url = sharedPrefs.getString("enhanced_url", null)
         if (url != null) {
             return url.substringBefore(".dns.nextdns.io")
         }
@@ -84,61 +82,29 @@ class ApiRepository(context: Context) {
     }
 
     suspend fun getNextDnsStats(): NextDnsAnalytics? {
-        val profileId = getCurrentNextDnsProfileId()
-        val cookie = getNextDnsCookie()
-
-        if (profileId == null || cookie == null) {
-
-            Log.e("ApiRepository", "No profile or cookie available for NextDNS stats")
-            e("ApiRepository", "${if (profileId == null) "Profile ID is null. " else ""}${if (cookie == null) "Cookie is null." else ""}")
-            return null
-        }
+        val profileId = requireAuth()
 
         return try {
-            ApiClient.nextDnsApi.getAnalytics(cookie, profileId, "-30d")
+            ApiClient.nextDnsApi.getAnalytics(profileId, "-30d")
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching analytics", e)
+            e("ApiRepository", "Error fetching analytics", e)
             null
         }
     }
 
     suspend fun getNextDnsEmail(): String {
-
-        val cookie = getNextDnsCookie()
-
-        if (!isLoggedIn(DnsProviders.NEXTDNS) || cookie == null) {
-            Log.e("ApiRepository", "No cookie found. User must login first.")
-            throw IllegalStateException("User must login first")
-        }
-
-        return try {
-            val response = ApiClient.nextDnsApi.getProfiles(cookie)
-            response.email
-        } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching email", e)
-            throw e
-        }
-
+        return keyManager.getEmail() ?: ""
     }
 
-    fun isLoggedIn(provider: DnsProvider): Boolean {
-        return provider is DnsProvider.Enhanced && getNextDnsCookie() != null
-    }
+
 
     suspend fun getNextDnsProfiles(): List<NextDnsProfile> {
-
-        val cookie = getNextDnsCookie()
-
-        if (!isLoggedIn(DnsProviders.NEXTDNS) || cookie == null) {
-            Log.e("ApiRepository", "No cookie found. User must login first.")
-            return emptyList()
-        }
-
+        if (!keyManager.hasToken()) throw IllegalStateException("Not logged in")
         return try {
-            val response = ApiClient.nextDnsApi.getProfiles(cookie)
-            response.profiles
+            val response = ApiClient.nextDnsApi.getProfiles()
+            response.data
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching profiles", e)
+            e("ApiRepository", "Error fetching profiles", e)
             emptyList()
         }
     }
@@ -148,19 +114,11 @@ class ApiRepository(context: Context) {
     }
 
     suspend fun createNextDnsProfile(name: String) {
-
-        val cookie = getNextDnsCookie()
-
-        if (!isLoggedIn(DnsProviders.NEXTDNS) || cookie == null) {
-            Log.e("ApiRepository", "No cookie found. User must login first.")
-            throw IllegalStateException("User must login first")
-        }
-
-
+        if (!keyManager.hasToken()) throw IllegalStateException("Not logged in")
         try {
-            val response = ApiClient.nextDnsApi.createProfile(cookie, NextDnsCreateProfileRequest.withName(name))
+            ApiClient.nextDnsApi.createProfile(NextDnsCreateProfileRequest.withName(name))
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error creating profile", e)
+            e("ApiRepository", "Error creating profile", e)
         }
 
     }
@@ -168,57 +126,51 @@ class ApiRepository(context: Context) {
 
 
     suspend fun getNextDnsStatsGraph(period: String = "-30d"): NextDnsStatsGraphResponse? {
-        val profileId = getCurrentNextDnsProfileId()
-        val cookie = getNextDnsCookie()
-        if (profileId == null || cookie == null) return null
+        val profileId = requireAuth()
         return try {
             val tz = java.util.TimeZone.getDefault().id
-            ApiClient.nextDnsApi.getStatsGraph(cookie, profileId, period, "start", tz)
+            ApiClient.nextDnsApi.getStatsGraph(profileId, period, "start", tz)
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching stats graph", e)
+            e("ApiRepository", "Error fetching stats graph", e)
             null
         }
     }
 
     suspend fun getNextDnsDomains(status: String, period: String = "-30d", limit: Int = 6): NextDnsDomainsResponse? {
-        val profileId = getCurrentNextDnsProfileId()
-        val cookie = getNextDnsCookie()
-        if (profileId == null || cookie == null) return null
+        val profileId = requireAuth()
         return try {
-            ApiClient.nextDnsApi.getDomains(cookie, profileId, status, period, limit)
+            ApiClient.nextDnsApi.getDomains(profileId, status, period, limit)
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching domains ($status)", e)
+            e("ApiRepository", "Error fetching domains ($status)", e)
             null
         }
     }
 
     fun nextDnsLogOut() {
-
-        sharedPrefs.edit()
-            .remove(NEXTDNS_COOKIE_KEY)
-            .apply()
-
+        keyManager.destroyApiKey()
+        keyManager.destroyEmail()
         repository.setProvider(DnsProviders.ADGUARD.id)
     }
 
 
     // new generic methods
 
-    private fun requireAuth(): Pair<String, String> {
-        val cookie = getNextDnsCookie()
-            ?: throw IllegalStateException("Not logged in")
+    fun requireAuth(): String {
+        if (!keyManager.hasToken()) {
+            throw IllegalStateException("Not logged in")
+        }
         val profileId = getCurrentNextDnsProfileId()
             ?: throw IllegalStateException("No profile selected")
-        return cookie to profileId
+        return profileId
     }
 
     suspend fun getPageSettings(page: String): JsonObject? {
         return try {
-            val (cookie, profileId) = requireAuth()
-            val response = ApiClient.nextDnsApi.getPageSettings(cookie, profileId, page)
+            val profileId = requireAuth()
+            val response = ApiClient.nextDnsApi.getPageSettings(profileId, page)
             response.getAsJsonObject("data")
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching $page settings", e)
+            e("ApiRepository", "Error fetching $page settings", e)
             null
         }
     }
@@ -228,63 +180,63 @@ class ApiRepository(context: Context) {
         payload: Map<String, Any>
     ): Boolean {
         return try {
-            val (cookie, profileId) = requireAuth()
+            val profileId = requireAuth()
             val response = ApiClient.nextDnsApi.patchPageSettings(
-                cookie, profileId, page, payload
+                profileId, page, payload
             )
             response.isSuccessful
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error patching $page", e)
+            e("ApiRepository", "Error patching $page", e)
             false
         }
     }
 
     suspend fun getActiveListItems(page: String, feat: String): List<String> {
         return try {
-            val (cookie, profileId) = requireAuth()
+            val profileId = requireAuth()
             val response = ApiClient.nextDnsApi.getActiveListItems(
-                cookie, profileId, page, feat
+                profileId, page, feat
             )
             val dataArray = response.getAsJsonArray("data")
             dataArray.map { it.asJsonObject.get("id").asString }
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching active $page/$feat", e)
+            e("ApiRepository", "Error fetching active $page/$feat", e)
             emptyList()
         }
     }
 
     suspend fun getAvailableCatalog(page: String, feat: String): JsonObject? {
         return try {
-            val (cookie, _) = requireAuth()
-            ApiClient.nextDnsApi.getAvailableCatalog(cookie, page, feat)
+            requireAuth()
+            ApiClient.nextDnsApi.getAvailableCatalog(page, feat)
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching catalog $page/$feat", e)
+            e("ApiRepository", "Error fetching catalog $page/$feat", e)
             null
         }
     }
 
     suspend fun addListItem(page: String, feat: String, itemId: String): Boolean {
         return try {
-            val (cookie, profileId) = requireAuth()
+            val profileId = requireAuth()
             val response = ApiClient.nextDnsApi.addListItem(
-                cookie, profileId, page, feat, mapOf("id" to itemId)
+                profileId, page, feat, mapOf("id" to itemId)
             )
             response.isSuccessful
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error adding $itemId to $page/$feat", e)
+            e("ApiRepository", "Error adding $itemId to $page/$feat", e)
             false
         }
     }
 
     suspend fun removeListItem(page: String, feat: String, itemId: String): Boolean {
         return try {
-            val (cookie, profileId) = requireAuth()
+            val profileId = requireAuth()
             val response = ApiClient.nextDnsApi.removeListItem(
-                cookie, profileId, page, feat, itemId.toHexId()
+                profileId, page, feat, itemId.toHexId()
             )
             response.isSuccessful
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error removing $itemId from $page/$feat", e)
+            e("ApiRepository", "Error removing $itemId from $page/$feat", e)
             false
         }
     }
@@ -293,15 +245,17 @@ class ApiRepository(context: Context) {
 
     // old
     suspend fun getNextDnsBlocklists(): List<Blocklist> {
+        throw UnsupportedOperationException("deprecated")
+        /**
         val cookie = getNextDnsCookie()
         if (!isLoggedIn(DnsProviders.NEXTDNS) || cookie == null) {
-            Log.e("ApiRepository", "No cookie found. User must login first.")
+            e("ApiRepository", "No cookie found. User must login first.")
             throw IllegalStateException("User must login first")
         }
 
         val profileId = getCurrentNextDnsProfileId()
         if (profileId == null) {
-            Log.e("ApiRepository", "No profile ID found. User must select a profile first.")
+            e("ApiRepository", "No profile ID found. User must select a profile first.")
             throw IllegalStateException("User must select a profile first")
         }
 
@@ -328,21 +282,24 @@ class ApiRepository(context: Context) {
 
             return blocklists
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching blocklists", e)
+            e("ApiRepository", "Error fetching blocklists", e)
             throw e
         }
+        */
     }
 
     suspend fun updateNextDnsBlocklists(blocklistId: String) {
+        throw UnsupportedOperationException("deprecated")
+         /**
         val cookie = getNextDnsCookie()
         if (!isLoggedIn(DnsProviders.NEXTDNS) || cookie == null) {
-            Log.e("ApiRepository", "No cookie found. User must login first.")
+            e("ApiRepository", "No cookie found. User must login first.")
             throw IllegalStateException("User must login first")
         }
 
         val profileId = getCurrentNextDnsProfileId()
         if (profileId == null) {
-            Log.e("ApiRepository", "No profile ID found. User must select a profile first.")
+            e("ApiRepository", "No profile ID found. User must select a profile first.")
             throw IllegalStateException("User must select a profile first")
         }
 
@@ -354,24 +311,26 @@ class ApiRepository(context: Context) {
 
 
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error updating blocklists", e)
+            e("ApiRepository", "Error updating blocklists", e)
             throw e
         }
-
+            */
     }
 
 
     suspend fun removeNextDnsBlocklists(blocklistId: String) {
+        throw UnsupportedOperationException("deprecated")
+        /**
 
         val cookie = getNextDnsCookie()
         if (!isLoggedIn(DnsProviders.NEXTDNS) || cookie == null) {
-            Log.e("ApiRepository", "No cookie found. User must login first.")
+            e("ApiRepository", "No cookie found. User must login first.")
             throw IllegalStateException("User must login first")
         }
 
         val profileId = getCurrentNextDnsProfileId()
         if (profileId == null) {
-            Log.e("ApiRepository", "No profile ID found. User must select a profile first.")
+            e("ApiRepository", "No profile ID found. User must select a profile first.")
             throw IllegalStateException("User must select a profile first")
         }
 
@@ -382,10 +341,10 @@ class ApiRepository(context: Context) {
 
 
         } catch (e: Exception) {
-            Log.e("ApiRepository", "Error removing blocklists", e)
+            e("ApiRepository", "Error removing blocklists", e)
             throw e
         }
-
+        */
     }
 
 

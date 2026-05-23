@@ -99,6 +99,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-
+    implementation("com.google.crypto.tink:tink-android:1.15.0")
 
 }

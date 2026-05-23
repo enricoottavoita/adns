@@ -2,6 +2,7 @@ package com.eyalm.adns.viewmodel
 
 import android.app.Application
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -38,11 +39,20 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
     suspend fun providerLogin(email: String, password: String, providrId: String) {
         currentStep = ProviderLoginActivity.Step.LOADING
         if (providrId == "nextdns") {
-            apiRepository.NextDnsLogin(email, password)
-            profiles = apiRepository.getNextDnsProfiles()
-            Log.d("ProviderLoginViewModel", "Login attempt for provider $providrId with email $email")
-            nextStep()
-
+            val loginSuccess = apiRepository.NextDnsLogin(email, password)
+            if (loginSuccess) {
+                val profilesList = apiRepository.getNextDnsProfiles()
+                profiles = profilesList
+                Log.d(
+                    "ProviderLoginViewModel",
+                    "Login attempt for provider $providrId with email $email"
+                )
+                nextStep()
+                return
+            } else {
+                Toast.makeText(getApplication(), "Login failed. Please check your credentials.", Toast.LENGTH_LONG).show()
+            }
+            currentStep = ProviderLoginActivity.Step.LOGIN
         }
     }
 

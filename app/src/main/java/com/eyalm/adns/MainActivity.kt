@@ -76,7 +76,6 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             settingsViewModel.refreshProvider()
             if (settingsViewModel.selectedProvider.value is DnsProvider.Enhanced) {
-                settingsViewModel.getBlocklists()
                 settingsViewModel.email = settingsViewModel.getEmail()
                 settingsViewModel.profiles = settingsViewModel.getProfiles()
                 settingsViewModel.currentProfile = settingsViewModel.getCurrentProfile()

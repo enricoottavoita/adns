@@ -7,15 +7,23 @@ data class NextDnsLoginRequest(
     @SerializedName("password") val password: String
 )
 
+data class NextDnsCreateApiKeyResponse(
+    @SerializedName("apiKey") val key: String
+)
+
 data class NextDnsProfileResponse(
     @SerializedName("email") val email: String,
     @SerializedName("profiles") val profiles: List<NextDnsProfile>
 )
 
+data class NextDnsProfilesResponse(
+    @SerializedName("data") val data: List<NextDnsProfile>
+)
+
 data class NextDnsProfile(
     @SerializedName("id") val id: String,
-    @SerializedName("fingerprint") val fingerprint: String,
-    @SerializedName("role") val role: String,
+    @SerializedName("fingerprint") val fingerprint: String? = null,
+    @SerializedName("role") val role: String? = null,
     @SerializedName("name") val name: String
 )
 

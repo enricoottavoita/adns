@@ -18,27 +18,27 @@ interface NextDnsApi {
         @Body request: NextDnsLoginRequest
     ): Response<Unit>
 
-    @GET("accounts/@me?withProfiles=true")
-    suspend fun getProfiles(
+    @POST("account/apiKeys")
+    suspend fun createApiKey(
         @Header("Cookie") cookie: String
-    ): NextDnsProfileResponse
+    ): Response<NextDnsCreateApiKeyResponse>
+
+    @GET("profiles")
+    suspend fun getProfiles(): NextDnsProfilesResponse
 
     @POST("profiles")
     suspend fun createProfile(
-        @Header("Cookie") cookie: String,
         @Body request: NextDnsCreateProfileRequest
     ): Response<NextDnsProfile>
 
     @GET("profiles/{profileId}/analytics/status")
     suspend fun getAnalytics(
-        @Header("Cookie") cookie: String,
         @Path("profileId") profileId: String,
         @Query("from") period: String
     ): NextDnsAnalytics
 
     @GET("profiles/{profileId}/analytics/status;series")
     suspend fun getStatsGraph(
-        @Header("Cookie") cookie: String,
         @Path("profileId") profileId: String,
         @Query("from") period: String,
         @Query("alignment") alignment: String = "start",
@@ -47,7 +47,6 @@ interface NextDnsApi {
 
     @GET("profiles/{profileId}/analytics/domains") // ?status=default%2Callowed&from=-30d&limit=6
     suspend fun getDomains(
-        @Header("Cookie") cookie: String,
         @Path("profileId") profileId: String,
         @Query("status") status: String, // "default,allowed," or "blocked"
         @Query("from") period: String,
@@ -59,7 +58,6 @@ interface NextDnsApi {
 
     @GET("profiles/{profileId}/{page}")
     suspend fun getPageSettings(
-        @Header("Cookie") cookie: String,
         @Path("profileId") profileId: String,
         @Path("page") page: String
     ): JsonObject
@@ -67,7 +65,6 @@ interface NextDnsApi {
 
     @PATCH("profiles/{profileId}/{page}")
     suspend fun patchPageSettings(
-        @Header("Cookie") cookie: String,
         @Path("profileId") profileId: String,
         @Path("page") page: String,
         @Body payload: Map<String, @JvmSuppressWildcards Any>
@@ -76,7 +73,6 @@ interface NextDnsApi {
     // get active list items for a feature
     @GET("profiles/{profileId}/{page}/{feat}")
     suspend fun getActiveListItems(
-        @Header("Cookie") cookie: String,
         @Path("profileId") profileId: String,
         @Path("page") page: String,
         @Path("feat") feat: String
@@ -85,7 +81,6 @@ interface NextDnsApi {
     // get the available catalog for server lists
     @GET("{page}/{feat}")
     suspend fun getAvailableCatalog(
-        @Header("Cookie") cookie: String,
         @Path("page") page: String,
         @Path("feat") feat: String
     ): JsonObject
@@ -93,7 +88,6 @@ interface NextDnsApi {
     // add an item to a list
     @POST("profiles/{profileId}/{page}/{feat}")
     suspend fun addListItem(
-        @Header("Cookie") cookie: String,
         @Path("profileId") profileId: String,
         @Path("page") page: String,
         @Path("feat") feat: String,
@@ -103,7 +97,6 @@ interface NextDnsApi {
     // remove an item from a list with hex id.
     @DELETE("profiles/{profileId}/{page}/{feat}/{hexId}")
     suspend fun removeListItem(
-        @Header("Cookie") cookie: String,
         @Path("profileId") profileId: String,
         @Path("page") page: String,
         @Path("feat") feat: String,

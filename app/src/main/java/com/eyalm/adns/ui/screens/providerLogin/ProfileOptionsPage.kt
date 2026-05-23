@@ -34,7 +34,7 @@ fun ProfileOptionPage(
 ) {
     
     val openCreateProfileDialog = remember { mutableStateOf(false) }
-    var selectedProfile by remember { mutableStateOf(profiles[0]) }
+    var selectedProfile by remember(profiles) { mutableStateOf(profiles.firstOrNull()) }
 
     when {
         openCreateProfileDialog.value -> {
@@ -54,8 +54,8 @@ fun ProfileOptionPage(
         bottomBarContent = {
             StandardBottomBar(
                 message = "Choose your profile.",
-                enabled = true,
-                onNextClick = { onNextClick(selectedProfile) }
+                enabled = selectedProfile != null,
+                onNextClick = { selectedProfile?.let { onNextClick(it) } }
             )
         },
         content = { paddingValues ->

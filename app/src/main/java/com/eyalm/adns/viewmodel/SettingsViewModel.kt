@@ -36,6 +36,7 @@ import com.eyalm.adns.data.ListSource
 import com.eyalm.adns.data.Locales
 import com.eyalm.adns.data.ToggleSetting
 import com.eyalm.adns.data.models.DnsProvider
+import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.toHexId
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -123,7 +124,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun isLoggedIn(provider: DnsProvider): Boolean {
-        return apiRepository.isLoggedIn(provider)
+        return when (provider) {
+            DnsProviders.NEXTDNS -> try {
+                apiRepository.requireAuth()
+                true
+            } catch (e: Exception) {
+                false
+            }
+            else -> false
+        }
     }
 
     suspend fun getEmail(): String {
