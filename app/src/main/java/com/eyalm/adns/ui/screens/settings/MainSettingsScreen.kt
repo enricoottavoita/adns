@@ -40,6 +40,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -72,6 +73,21 @@ fun MainSettingsScreen(
     val viewModel: SettingsViewModel = viewModel()
     val provider by viewModel.selectedProvider.collectAsState()
     val context = LocalContext.current
+
+    val onAccountSettingsClick = remember(onPageChange) { { onPageChange(Page.ACCOUNT_SETTINGS) } }
+    val onBlocklistsClick = remember(onPageChange) { { onPageChange(Page.BLOCKLISTS) } }
+    val onProvidersClick = remember(onPageChange) { { onPageChange(Page.PROVIDERS) } }
+    val onSecurityClick = remember(onPageChange) { { onPageChange(Page.SECURITY) } }
+    val onPrivacyClick = remember(onPageChange) { { onPageChange(Page.PRIVACY) } }
+    val onParentalControlClick = remember(onPageChange) { { onPageChange(Page.PARENTAL_CONTROL) } }
+    val onSettingsPageClick = remember(onPageChange) { { onPageChange(Page.SETTINGS_PAGE) } }
+    val onNotificationsClick = remember(permissionLauncher) {
+        {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissionLauncher?.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -125,7 +141,7 @@ fun MainSettingsScreen(
                     )
                     if (isNextDns) {
                         ExpressiveListItem(
-                            onClick = { onPageChange(Page.ACCOUNT_SETTINGS) },
+                            onClick = onAccountSettingsClick,
                             icon = Icons.Filled.AccountCircle,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             title = "${provider.name} Settings",
@@ -133,7 +149,7 @@ fun MainSettingsScreen(
                             isFirst = true,
                         )
                         ExpressiveListItem(
-                            onClick = { onPageChange(Page.BLOCKLISTS) },
+                            onClick = onBlocklistsClick,
                             icon = Icons.Filled.FilterList,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             title = "${provider.name} Blocklists",
@@ -142,7 +158,7 @@ fun MainSettingsScreen(
                     }
 
                     ExpressiveListItem(
-                        onClick = { onPageChange(Page.PROVIDERS) },
+                        onClick = onProvidersClick,
                         title = "Change Provider",
                         description = "Change the provider to use",
                         icon = Icons.Filled.BroadcastOnPersonal,
@@ -171,7 +187,7 @@ fun MainSettingsScreen(
                         ExpressiveListItem(
                             title = "Security",
                             description = "Threat protection, DNS rebinding, TLDs",
-                            onClick = { onPageChange(Page.SECURITY) },
+                            onClick = onSecurityClick,
                             icon = Icons.Filled.Security,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             isFirst = true
@@ -179,21 +195,21 @@ fun MainSettingsScreen(
                         ExpressiveListItem(
                             title = "Privacy",
                             description = "Blocklists, trackers, affiliate links",
-                            onClick = { onPageChange(Page.PRIVACY) },
+                            onClick = onPrivacyClick,
                             icon = Icons.Filled.PrivacyTip,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         )
                         ExpressiveListItem(
                             title = "Parental Control",
                             description = "SafeSearch, blocked apps, categories",
-                            onClick = { onPageChange(Page.PARENTAL_CONTROL) },
+                            onClick = onParentalControlClick,
                             icon = Icons.Filled.FamilyRestroom,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         )
                         ExpressiveListItem(
                             title = "General Profile Settings",
                             description = "Logs, performance, block page",
-                            onClick = { onPageChange(Page.SETTINGS_PAGE) },
+                            onClick = onSettingsPageClick,
                             icon = Icons.Filled.Tune,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             isLast = true
@@ -214,11 +230,7 @@ fun MainSettingsScreen(
                         modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
                     )
                     ExpressiveListItem(
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                permissionLauncher?.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                        },
+                        onClick = onNotificationsClick,
                         title = "State Notifications",
                         description = "Enable or disable blocker state notifications",
                         icon = Icons.Filled.Notifications,

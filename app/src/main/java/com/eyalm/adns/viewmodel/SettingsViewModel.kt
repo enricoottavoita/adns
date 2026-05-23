@@ -160,8 +160,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     suspend fun getCurrentProfile(): NextDnsProfile? {
         val profileId = apiRepository.getCurrentNextDnsProfileId()
-        val profiles = apiRepository.getNextDnsProfiles()
-        return profiles.firstOrNull { it.id == profileId }
+        val currentProfiles = profiles ?: apiRepository.getNextDnsProfiles()
+        return currentProfiles.firstOrNull { it.id == profileId }
     }
 
     fun setProfile(profile: NextDnsProfile) {

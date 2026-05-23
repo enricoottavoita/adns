@@ -162,11 +162,20 @@ fun Greeting(
 ) {
 
     var selectedItem by remember { mutableIntStateOf(0) }
-    val items = listOf("Home", "Stats", "Settings")
-    val selectedIcons = listOf(Icons.Filled.Home, Icons.Filled.Insights, Icons.Filled.Settings)
-    val unselectedIcons =
+    val items = remember { listOf("Home", "Stats", "Settings") }
+    val selectedIcons = remember { listOf(Icons.Filled.Home, Icons.Filled.Insights, Icons.Filled.Settings) }
+    val unselectedIcons = remember {
         listOf(Icons.Outlined.Home, Icons.Outlined.Insights, Icons.Outlined.Settings)
+    }
     val context = LocalContext.current
+    val onNavigateToProviders = remember(context) {
+        { providerId: String ->
+            val intent = Intent(context, ProviderLoginActivity::class.java).apply {
+                putExtra("provider", providerId)
+            }
+            context.startActivity(intent)
+        }
+    }
     val latestVersion = remember { mutableStateOf<String?>(null) }
 
     val settingsViewModel: SettingsViewModel = viewModel()
@@ -262,12 +271,7 @@ fun Greeting(
             2 -> {
                 SettingsTabRouter(
                     modifier = Modifier.padding(innerPadding),
-                    onNavigateToProvidersActivity = { providerId ->
-                        val intent = Intent(context, ProviderLoginActivity::class.java).apply {
-                            putExtra("provider", providerId)
-                        }
-                        context.startActivity(intent)
-                    },
+                    onNavigateToProvidersActivity = onNavigateToProviders,
                     permissionLauncher = permissionLauncher
                 )
             }

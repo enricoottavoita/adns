@@ -13,6 +13,8 @@ import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
 import com.eyalm.adns.data.network.toHexId
 import com.google.gson.JsonObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class Blocklist(
     val id: String,
@@ -92,8 +94,8 @@ class ApiRepository(private val context: Context) {
         }
     }
 
-    suspend fun getNextDnsEmail(): String {
-        return keyManager.getEmail() ?: ""
+    suspend fun getNextDnsEmail(): String = withContext(Dispatchers.IO) {
+        keyManager.getEmail() ?: ""
     }
 
 
