@@ -180,8 +180,8 @@ object SettingsPageSettings {
         ToggleSetting(
             apiPath = listOf("bav"),
             localeKey = "bav", category = "settings",
-            customTitle = "Block Anonymous Visitors",
-            customDescription = "Protect against browser-level threats."
+            customTitle = "Bypass Age Verification",
+            customDescription = "Automatically bypass age verification checks used by certain websites, such as adult content sites, to verify a visitor’s age before allowing access."
         ),
         ToggleSetting(
             apiPath = listOf("web3"),

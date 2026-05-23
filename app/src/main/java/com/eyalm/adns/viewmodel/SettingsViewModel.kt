@@ -39,8 +39,10 @@ import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.toHexId
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -205,6 +207,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _loadedPageId = MutableStateFlow<String>("")
     val loadedPageId: StateFlow<String> = _loadedPageId.asStateFlow()
 
+    private val _errorMessage = MutableSharedFlow<String>()
+    val errorMessage = _errorMessage.asSharedFlow()
+
     fun loadPageSettings(page: String, toggles: List<ToggleSetting>) {
 
         if (_loadedPageId.value == page && _pageToggles.value.isNotEmpty()) {
@@ -244,6 +249,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 _pageToggles.value = _pageToggles.value.toMutableMap().apply {
                     this[toggle.stateKey] = !newValue
                 }
+                _errorMessage.emit("Network error. Please try again.")
             }
         }
     }

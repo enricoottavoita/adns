@@ -19,6 +19,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -51,12 +53,20 @@ fun GenericCategoryScreen(
     val viewModel: SettingsViewModel = viewModel()
     val toggleStates by viewModel.pageToggles.collectAsState()
     val loadedPageId by viewModel.loadedPageId.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(apiPage) {
         viewModel.loadPageSettings(apiPage, toggles)
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.errorMessage.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { },

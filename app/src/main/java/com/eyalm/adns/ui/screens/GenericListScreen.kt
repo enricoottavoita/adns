@@ -20,10 +20,13 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,7 +52,17 @@ fun GenericListScreen(onBack: () -> Unit) {
 
     var searchQuery by remember { mutableStateOf("") }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val errorMessage by viewModel.errorMessage.collectAsState(initial = null)
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { },
@@ -73,10 +86,12 @@ fun GenericListScreen(onBack: () -> Unit) {
                 LoadingIndicator(modifier = Modifier.size(100.dp))
             }
         } else {
-            val filteredItems = availableItems.filter { item ->
-                item.name.contains(searchQuery, ignoreCase = true) ||
-                        item.id.contains(searchQuery, ignoreCase = true) ||
-                        (item.description?.contains(searchQuery, ignoreCase = true) == true)
+            val filteredItems = remember(searchQuery, availableItems) {
+                availableItems.filter { item ->
+                    item.name.contains(searchQuery, ignoreCase = true) ||
+                            item.id.contains(searchQuery, ignoreCase = true) ||
+                            (item.description?.contains(searchQuery, ignoreCase = true) == true)
+                }
             }
 
             LazyColumn(
