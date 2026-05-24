@@ -104,6 +104,30 @@ interface NextDnsApi {
     ): Response<Unit>
 
 
+    // endpoint for denylist/allowlist
+    @POST("profiles/{profileId}/{page}")
+    suspend fun addCustomItem(
+        @Path("profileId") profileId: String,
+        @Path("page") page: String,
+        @Body payload: Map<String, String>
+    ): Response<Unit>
+
+    @PATCH("profiles/{profileId}/{page}/{hexId}")
+    suspend fun patchCustomItem(
+        @Path("profileId") profileId: String,
+        @Path("page") page: String,
+        @Path("hexId") hexId: String,
+        @Body payload: Map<String, Boolean>
+    ): Response<Unit>
+
+    @DELETE("profiles/{profileId}/{page}/{hexId}")
+    suspend fun removeCustomItem(
+        @Path("profileId") profileId: String,
+        @Path("page") page: String,
+        @Path("hexId") hexId: String
+    ): Response<Unit>
+
+
 
 
 

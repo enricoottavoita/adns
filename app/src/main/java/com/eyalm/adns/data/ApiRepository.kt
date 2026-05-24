@@ -248,12 +248,32 @@ class ApiRepository(private val context: Context) {
         return try {
             val profileId = requireAuth()
             val response = ApiClient.nextDnsApi.getPageSettings(profileId, page)
-
             response.getAsJsonArray("data")
-        } catch (e: Exception) {
-            Log.e("ApiRepository", "Error fetching custom list $page", e)
-            null
-        }
+        } catch (e: Exception) { null }
+    }
+
+    suspend fun addCustomListItem(page: String, domain: String): Boolean {
+        return try {
+            val profileId = requireAuth()
+            val response = ApiClient.nextDnsApi.addCustomItem(profileId, page, mapOf("id" to domain))
+            response.isSuccessful
+        } catch (e: Exception) { false }
+    }
+
+    suspend fun patchCustomListItem(page: String, domain: String, isActive: Boolean): Boolean {
+        return try {
+            val profileId = requireAuth()
+            val response = ApiClient.nextDnsApi.patchCustomItem(profileId, page, domain.toHexId(), mapOf("active" to isActive))
+            response.isSuccessful
+        } catch (e: Exception) { false }
+    }
+
+    suspend fun removeCustomListItem(page: String, domain: String): Boolean {
+        return try {
+            val profileId = requireAuth()
+            val response = ApiClient.nextDnsApi.removeCustomItem(profileId, page, domain.toHexId())
+            response.isSuccessful
+        } catch (e: Exception) { false }
     }
 
 

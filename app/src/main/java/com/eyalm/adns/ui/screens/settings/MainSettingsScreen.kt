@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BroadcastOnPersonal
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Notifications
@@ -210,8 +211,15 @@ fun MainSettingsScreen(
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         )
                         ExpressiveListItem(
+                            title = "Allowlist",
+                            description = "Add specific domains to the Allowlist.",
+                            onClick = onDenylistClick,
+                            icon = Icons.Filled.Check,
+                            secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        )
+                        ExpressiveListItem(
                             title = "Denylist",
-                            description = "Add specific domain to the denylist.",
+                            description = "Add specific domains to the denylist.",
                             onClick = onDenylistClick,
                             icon = Icons.Filled.Block,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,

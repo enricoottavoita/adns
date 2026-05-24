@@ -431,25 +431,63 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun toggleListItem(itemId: String) {
         val listSetting = currentListSetting ?: return
         val isCurrentlyActive = _activeListIds.value.contains(itemId)
+        val newState = !isCurrentlyActive
 
-        _activeListIds.value = if (isCurrentlyActive) {
-            _activeListIds.value - itemId
-        } else {
-            _activeListIds.value + itemId
-        }
+        if (newState) _activeListIds.value += itemId else _activeListIds.value -= itemId
+
 
         viewModelScope.launch {
-            val success = if (isCurrentlyActive) {
-                apiRepository.removeListItem(listSetting.apiPage, listSetting.apiFeat, itemId)
+            val success = if (listSetting.allowsCustomInput) {
+                apiRepository.patchCustomListItem(listSetting.apiPage, itemId, newState)
             } else {
-                apiRepository.addListItem(listSetting.apiPage, listSetting.apiFeat, itemId)
+                if (isCurrentlyActive) {
+                    apiRepository.removeListItem(listSetting.apiPage, listSetting.apiFeat, itemId)
+                } else {
+                    apiRepository.addListItem(listSetting.apiPage, listSetting.apiFeat, itemId)
+                }
             }
             if (!success) {
-                _activeListIds.value = if (isCurrentlyActive) {
-                    _activeListIds.value + itemId
-                } else {
-                    _activeListIds.value - itemId
-                }
+                if (isCurrentlyActive) _activeListIds.value += itemId else _activeListIds.value -= itemId
+                _errorMessage.emit("Failed to update $itemId")
+            }
+        }
+    }
+
+    fun addCustomDomain(domain: String) {
+        val listSetting = currentListSetting ?: return
+        if (!listSetting.allowsCustomInput) return
+
+        val cleanDomain = domain.trim().lowercase()
+
+        val newItem = ListItem(id = cleanDomain, name = cleanDomain)
+        _availableItems.value = listOf(newItem) + _availableItems.value
+        _activeListIds.value += cleanDomain
+
+        viewModelScope.launch {
+            val success = apiRepository.addCustomListItem(listSetting.apiPage, cleanDomain)
+            if (!success) {
+                _availableItems.value = _availableItems.value.filter { it.id != cleanDomain }
+                _activeListIds.value -= cleanDomain
+                _errorMessage.emit("Failed to add $cleanDomain")
+            }
+        }
+    }
+
+    fun deleteCustomDomain(domain: String) {
+        val listSetting = currentListSetting ?: return
+        if (!listSetting.allowsCustomInput) return
+
+        val wasActive = _activeListIds.value.contains(domain)
+
+        _availableItems.value = _availableItems.value.filter { it.id != domain }
+        _activeListIds.value -= domain
+
+        viewModelScope.launch {
+            val success = apiRepository.removeCustomListItem(listSetting.apiPage, domain)
+            if (!success) {
+                _availableItems.value = listOf(ListItem(id = domain, name = domain)) + _availableItems.value
+                if (wasActive) _activeListIds.value += domain
+                _errorMessage.emit("Failed to delete $domain")
             }
         }
     }
