@@ -53,7 +53,7 @@ fun OnboardingTemplate(
                     .fillMaxWidth()
                     .height(128.dp),
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
             ) {
                 Row(
                     modifier = Modifier

@@ -14,10 +14,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.eyalm.adns.ui.components.OnboardingTemplate
 import com.eyalm.adns.ui.components.SelectableCard
 import com.eyalm.adns.ui.components.StandardBottomBar
+import com.eyalm.adns.ui.theme.pageTitle
 
 @Preview
 @Composable
@@ -71,9 +71,7 @@ fun ActivationMethodScreen(
             item {
                 Text(
                     text = "Activation",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontSize = 36.sp,
-                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.pageTitle,
                     modifier = Modifier.padding(top = 16.dp)
                 )
 

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import com.eyalm.adns.ui.components.DnsSwitch
 import com.eyalm.adns.ui.theme.AdnsTheme
+import com.eyalm.adns.ui.theme.pageTitle
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -59,7 +60,7 @@ fun HomeScreen(
         ) {
             Text(
                 text = if (isEnabled) "Goooodbye,\nAds!" else "Blocker\nDisabled",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.pageTitle,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 48.sp,
                 lineHeight = 48.sp,

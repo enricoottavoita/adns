@@ -16,9 +16,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,7 +86,7 @@ fun StatsScreenContent(
             Spacer(modifier = Modifier.weight(1f))
         } else if (stats == null) {
             Spacer(modifier = Modifier.weight(1f))
-            LoadingIndicator(modifier = Modifier.size(100.dp).align(Alignment.CenterHorizontally))
+            ContainedLoadingIndicator(modifier = Modifier.size(100.dp).align(Alignment.CenterHorizontally))
             Spacer(modifier = Modifier.weight(1f))
         } else if (provider != null) {
             StatsCards(stats, provider)

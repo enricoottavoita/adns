@@ -49,6 +49,6 @@ fun SelectableCard(
         },
         selected = selected,
         onClick = onClick,
-        modifier = modifier
+        modifier = modifier,
     )
 }

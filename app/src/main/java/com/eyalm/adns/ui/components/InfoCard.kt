@@ -23,11 +23,11 @@ fun InfoCard(
     modifier: Modifier = Modifier
 ) {
     val backgroundColor by animateColorAsState(
-        targetValue = if (!selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+        targetValue = if (!selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary,
         label = "selectable_card_bg"
     )
 
-    val contentColor = if (!selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.secondaryContainer
+    val contentColor = if (!selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary
 
     Card(
         shape = RoundedCornerShape(16.dp),
