@@ -1,5 +1,6 @@
 package com.eyalm.adns.ui.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
@@ -23,6 +24,8 @@ import androidx.compose.ui.unit.dp
 fun ExpressiveListItem(
     onClick: () -> Unit,
     isSelected: Boolean = false,
+    altLeadingContent: (@Composable (isEnabled: Boolean) -> Unit)? = null,
+    altContent: (@Composable () -> Unit)? = null,
     icon: ImageVector? = null,
     secondIcon: ImageVector? = null,
     interactiveItem: (@Composable (isSelected: Boolean, onClick: () -> Unit) -> Unit)? = null,
@@ -45,29 +48,37 @@ fun ExpressiveListItem(
 
     val itemShapes = ListItemDefaults.shapes(shape = itemShape)
 
-    val leading = remember(icon) {
-        icon?.let {
-            @Composable {
-                Row {
-                    ExpressiveIcon(it)
+    val leading = remember(icon, altLeadingContent, isSelected) {
+        @Composable {
+            if (icon != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ExpressiveIcon(icon)
                     Spacer(Modifier.width(4.dp))
                 }
-
+            }
+            if (altLeadingContent != null) {
+                altLeadingContent(isSelected)
             }
         }
     }
 
     val supportingTextStyle = MaterialTheme.typography.bodyMedium
     val supportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val supporting = remember(description, supportingTextStyle, supportingTextColor) {
-        description?.let {
-            @Composable {
-                Text(
-                    text = it,
-                    style = supportingTextStyle,
-                    color = supportingTextColor
-                )
+    val supporting = remember(description, supportingTextStyle, supportingTextColor, altContent) {
+        @Composable {
+            Column {
+                description?.let {
+                    Text(
+                        text = it,
+                        style = supportingTextStyle,
+                        color = supportingTextColor
+                    )
+                }
+                if (altContent != null) {
+                    altContent()
+                }
             }
+
         }
     }
 
@@ -96,6 +107,7 @@ fun ExpressiveListItem(
             if (interactiveItem != null) {
                 interactiveItem(isSelected, onClick)
             }
+
         }
     }
 
