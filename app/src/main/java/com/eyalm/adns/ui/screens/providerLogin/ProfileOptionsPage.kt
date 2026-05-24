@@ -5,14 +5,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,12 +99,12 @@ fun CreateProfileDialog(
             Text(text = "Create Profile")
         },
         text = {
-            Text(text = "How would you like to name your profile?")
-            TextField(
+            OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Profile Name") },
-
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
             )
         },
         onDismissRequest = {
@@ -112,7 +113,9 @@ fun CreateProfileDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onConfirmation(name) // TODO: Error handling: validate name, make sure it doesn't already exist
+                    if (name.trim().isNotEmpty()) {
+                        onConfirmation(name) // TODO: Error handling: validate name, make sure it doesn't already exist
+                    }
                 }
             ) {
                 Text("Create")

@@ -154,7 +154,9 @@ fun GenericListScreen(onBack: () -> Unit) {
                         modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
                     )
                     Text(text = listSetting.description() , fontSize = 16.sp)
-                    Text(text = "Hint: To remove items from the list, swipe to the left.", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (listSetting.allowsCustomInput) {
+                        Text(text = "Hint: To remove items from the list, swipe to the left.", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
                 if (availableItems.count() > 10 ) {
@@ -276,9 +278,9 @@ fun AddDialog(
                 onValueChange = {
                     domain = it
                 },
-                isError = !Patterns.DOMAIN_NAME.matcher(domain).matches(),
+                isError = !Patterns.DOMAIN_NAME.matcher(domain).matches() && domain != "",
                 supportingText = {
-                    if (!Patterns.DOMAIN_NAME.matcher(domain).matches()) {
+                    if (!Patterns.DOMAIN_NAME.matcher(domain).matches() && domain != "") {
                         Text("Invalid Domain")
                     }
                 },
