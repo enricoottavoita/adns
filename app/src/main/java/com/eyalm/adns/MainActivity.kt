@@ -253,7 +253,6 @@ fun Greeting(
                     isEnabled = isEnabled,
                     runningTime = runningTime,
                     onToggle = onToggle,
-                    modifier = modifier,
                     server = server,
                     onEditClick = {
                         selectedItem = 2

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
@@ -26,6 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -40,99 +40,89 @@ fun HomeScreen(
     isEnabled: Boolean,
     runningTime: String,
     onToggle: () -> Unit,
-    modifier: Modifier = Modifier,
     server: String = "dns.adguard-dns.com",
     onEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     innerPadding: PaddingValues
 ) {
-    val localContext = LocalContext.current
-
-
-    Column(modifier = modifier
-        .fillMaxSize()
-        .padding(innerPadding)
-        .padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(32.dp),
-            verticalArrangement = Arrangement.Center
+                .padding(horizontal = 48.dp)
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
             Text(
                 text = if (isEnabled) "Goooodbye,\nAds!" else "Blocker\nDisabled",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 48.sp,
                 lineHeight = 48.sp,
+            )
 
-
-                )
             Spacer(modifier = Modifier.height(32.dp))
-            LazyColumn() {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Column {
-                            Text(text = "DNS Ad Blocker")
-                            Text(
-                                text = if (isEnabled) "Running" else "Not running",
-                                color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                            )
-                        }
-                        IconButton(
-                            modifier = Modifier
-                                .align(Alignment.Top),
-                            onClick = onSettingsClick,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Settings,
-                                contentDescription = "Settings"
-                            )
-                        }
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column {
+                        Text(text = "DNS Ad Blocker")
+                        Text(
+                            text = if (isEnabled) "Running" else "Not running",
+                            color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
+                    IconButton(
+                        modifier = Modifier.align(Alignment.Top),
+                        onClick = onSettingsClick,
                     ) {
-                        Column {
-                            Text(text = "Server")
-                            Text(text = server)
-                        }
-                        IconButton(
-                            modifier = Modifier
-                                .align(Alignment.Top),
-                            onClick = onEditClick,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Edit,
-                                contentDescription = "Change DNS Server"
-                            )
-                        }
+                        Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings")
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = if (isEnabled) "Uptime" else "")
-                    Text(text = if (isEnabled) runningTime else "")
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column {
+                        Text(text = "Server")
+                        Text(text = server)
+                    }
+                    IconButton(
+                        modifier = Modifier.align(Alignment.Top),
+                        onClick = onEditClick,
+                    ) {
+                        Icon(imageVector = Icons.Filled.Edit, contentDescription = "Change DNS Server")
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.alpha(if (isEnabled) 1f else 0f)
+                ) {
+                    Text(text = "Uptime")
+                    Text(text = runningTime)
                 }
             }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            DnsSwitch(
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                isEnabled = isEnabled,
+                onToggle = onToggle
+            )
         }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        DnsSwitch(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally),
-            isEnabled = isEnabled,
-            onToggle = onToggle
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
     }
 }
 
