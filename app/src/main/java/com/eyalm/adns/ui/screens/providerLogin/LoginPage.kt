@@ -2,10 +2,8 @@ package com.eyalm.adns.ui.screens.providerLogin
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +31,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.ui.components.OnboardingTemplate
 import com.eyalm.adns.ui.components.StandardBottomBar
@@ -74,9 +73,11 @@ fun Login(provider: DnsProvider,
                     style = MaterialTheme.typography.pageTitle,
                     modifier = Modifier.padding(top = 16.dp)
                 )
-                Text("To your ${provider.name} account")
+                Text("ADNS uses your credentials only to automatically create your NextDNS API key, which is then stored in an encrypted format. Your email and password themselves are never saved.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    lineHeight = 20.sp)
 
-                Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
                     value = email,
