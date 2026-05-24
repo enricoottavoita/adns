@@ -145,10 +145,10 @@ fun GenericListScreen(onBack: () -> Unit) {
                         text = listSetting.title(),
                         style = MaterialTheme.typography.pageTitle,
                         color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(top = 48.dp, bottom = 8.dp),
-                        fontSize = 32.sp
+                        modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(text = listSetting.description(), fontSize = 16.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 item {

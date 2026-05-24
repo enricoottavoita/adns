@@ -2,6 +2,7 @@ package com.eyalm.adns.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.ActivityResultLauncher
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -24,6 +25,7 @@ fun SettingsTabRouter(
     modifier: Modifier = Modifier,
     onNavigateToProvidersActivity: (String) -> Unit,
     permissionLauncher: ActivityResultLauncher<String>? = null,
+    innerPadding: PaddingValues
 
 ) {
     val viewModel: SettingsViewModel = viewModel()
@@ -39,6 +41,7 @@ fun SettingsTabRouter(
                 permissionLauncher = permissionLauncher,
                 currentPage = page,
                 onPageChange = viewModel::setPage,
+                innerPadding = innerPadding
             )
         }
         SettingsViewModel.Page.PROVIDERS -> {

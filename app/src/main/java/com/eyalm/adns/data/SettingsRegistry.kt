@@ -84,12 +84,13 @@ data class ListSetting(
     val localePath: List<String>, // Path in merged.json for locale-sourced lists
     val parentPage: Page? = null,       // Which page to go back to
     val customTitle: String? = null,
+    val customDescription: String? = null,
     val allowsCustomInput: Boolean = false
 ) {
     enum class Page { SECURITY, PRIVACY, PARENTAL_CONTROL }
 
     fun title(): String = customTitle ?: Locales.getString(localeCategory, localeKey, "name")
-    fun description(): String = Locales.getString(localeCategory, localeKey, "description")
+    fun description(): String = customDescription ?: Locales.getString(localeCategory, localeKey, "description")
 
 }
 
@@ -258,6 +259,7 @@ object DenyList {
             source = ListSource.SERVER,
             localePath = emptyList(),
             customTitle = "Denylist",
+            customDescription = "Add specific domains to the Denylist.",
             allowsCustomInput = true
         )
     )
@@ -272,6 +274,7 @@ object Allowlist {
             localeCategory = "pages",
             localeKey = "allowlist",
             customTitle = "Allowlist",
+            customDescription = "Add specific domains to the Allowlist.",
             source = ListSource.SERVER,
             localePath = emptyList(),
             allowsCustomInput = true

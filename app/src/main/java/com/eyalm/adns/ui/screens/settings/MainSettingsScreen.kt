@@ -8,8 +8,8 @@ import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BroadcastOnPersonal
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FamilyRestroom
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Security
@@ -35,10 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -72,7 +68,8 @@ fun MainSettingsScreen(
     onAddQuickTile: () -> Unit = {},
     permissionLauncher: ActivityResultLauncher<String>? = null,
     currentPage: Page = Page.MAIN,
-    onPageChange: (Page) -> Unit = {}
+    onPageChange: (Page) -> Unit = {},
+    innerPadding: PaddingValues
 ) {
     val viewModel: SettingsViewModel = viewModel()
     val provider by viewModel.selectedProvider.collectAsState()
@@ -95,29 +92,7 @@ fun MainSettingsScreen(
         }
     }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    /*
-                    IconButton(onClick = {
-                        onBack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
 
-                     */
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0)
-    ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
@@ -130,7 +105,7 @@ fun MainSettingsScreen(
                     text = "Settings",
                     style = MaterialTheme.typography.pageTitle,
                     color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(top = 144.dp, bottom = 8.dp),
                 )
             }
 
@@ -154,6 +129,7 @@ fun MainSettingsScreen(
                             description = "Change account settings for ${provider.name}",
                             isFirst = true,
                         )
+                        /*
                         ExpressiveListItem(
                             onClick = onBlocklistsClick,
                             icon = Icons.Filled.FilterList,
@@ -161,6 +137,7 @@ fun MainSettingsScreen(
                             title = "${provider.name} Blocklists",
                             description = "Change blocklists for ${provider.name}",
                         )
+                         */
                     }
 
                     ExpressiveListItem(
@@ -318,5 +295,5 @@ fun MainSettingsScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
-    }
+
 }

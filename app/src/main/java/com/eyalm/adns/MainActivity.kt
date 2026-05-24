@@ -272,7 +272,8 @@ fun Greeting(
                 SettingsTabRouter(
                     modifier = Modifier.padding(innerPadding),
                     onNavigateToProvidersActivity = onNavigateToProviders,
-                    permissionLauncher = permissionLauncher
+                    permissionLauncher = permissionLauncher,
+                    innerPadding = innerPadding
                 )
             }
         }
