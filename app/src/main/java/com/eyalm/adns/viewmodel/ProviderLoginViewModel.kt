@@ -28,7 +28,6 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
 
         currentStep = when (currentStep) {
             ProviderLoginActivity.Step.LOGIN -> ProviderLoginActivity.Step.LOADING
-            ProviderLoginActivity.Step.SIGNUP -> ProviderLoginActivity.Step.LOADING
             ProviderLoginActivity.Step.LOADING -> ProviderLoginActivity.Step.PROFILE
             ProviderLoginActivity.Step.PROFILE -> ProviderLoginActivity.Step.SUCCESS
             ProviderLoginActivity.Step.SUCCESS -> ProviderLoginActivity.Step.LOGIN
