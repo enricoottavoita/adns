@@ -28,15 +28,14 @@ object DnsProviders {
         id = "nextdns",
         name = "NextDNS",
         description = "Connect your account to use NextDNS as a DNS provider.",
-        hostname = null
     )
 
 
     val getAllProviders = listOf(
+        NEXTDNS,
         ADGUARD,
         GOOGLE,
-        CLOUDFLARE,
-        NEXTDNS
+        CLOUDFLARE
     )
 
     fun getProviderByHostname(hostname: String): DnsProvider {

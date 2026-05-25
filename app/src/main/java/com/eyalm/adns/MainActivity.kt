@@ -1,57 +1,79 @@
 package com.eyalm.adns
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Update
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.core.content.edit
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.eyalm.adns.ui.components.DnsSwitch
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.eyalm.adns.data.DnsRepository
+import com.eyalm.adns.data.Locales
+import com.eyalm.adns.data.models.DnsProvider
+import com.eyalm.adns.data.models.DnsProviders
+import com.eyalm.adns.ui.screens.HomeScreen
+import com.eyalm.adns.ui.screens.SettingsTabRouter
+import com.eyalm.adns.ui.screens.StatsScreen
+import com.eyalm.adns.ui.screens.UpdateDialog
 import com.eyalm.adns.ui.theme.AdnsTheme
 import com.eyalm.adns.viewmodel.MainViewModel
+import com.eyalm.adns.viewmodel.SettingsViewModel
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     private fun handleShortcutIntent(intent: Intent?) {
         if (intent?.action == "com.eyalm.adns.TOGGLE_ACTION") {
@@ -64,8 +86,23 @@ class MainActivity : ComponentActivity() {
         handleShortcutIntent(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch {
+            settingsViewModel.refreshProvider()
+            if (settingsViewModel.selectedProvider.value is DnsProvider.Enhanced) {
+                settingsViewModel.email = settingsViewModel.getEmail()
+                settingsViewModel.profiles = settingsViewModel.getProfiles()
+                settingsViewModel.currentProfile = settingsViewModel.getCurrentProfile()
+            }
+        }
+
+
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splashScreen = installSplashScreen()
+        val context = applicationContext
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         if (checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) {
@@ -75,14 +112,31 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         handleShortcutIntent(intent)
+        Locales.init(context)
+
+        lifecycleScope.launch {
+            // migrate from 1.0.3
+            val sharedPreferences = getSharedPreferences("adns_settings", Context.MODE_PRIVATE)
+            val oldHostname = sharedPreferences.getString("custom_url", null)
+            oldHostname?.let {
+                val provider = DnsProviders.getProviderByHostname(oldHostname)
+                val repository = DnsRepository(context)
+                sharedPreferences.edit { remove("custom_url") }
+                if (provider is DnsProvider.Custom) {
+                    repository.setProvider("custom", oldHostname)
+                } else {
+                    repository.setProvider(provider.id)
+                }
+            }
+        }
 
         setContent {
             AdnsTheme {
                 val isEnabled by viewModel.adBlockingState.collectAsState()
                 val runningTime by viewModel.runningTimeFlow.collectAsState()
                 val server by viewModel.dnsUrlFlow.collectAsState()
-
                 val showDialog = remember { mutableStateOf(false) }
+                val settingsPage by settingsViewModel.page.collectAsState()
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
@@ -91,8 +145,12 @@ class MainActivity : ComponentActivity() {
                         onToggle = { viewModel.toggleDns() },
                         modifier = Modifier.padding(innerPadding),
                         server = server,
-                        onEditClick = { showDialog.value = true },
-                        checkForUpdate = viewModel::checkForUpdate
+                        onEditClick = {
+                            settingsViewModel.setPage(SettingsViewModel.Page.PROVIDERS)
+                        },
+                        checkForUpdate = viewModel::checkForUpdate,
+                        settingsPage = settingsPage
+
                     )
                 }
 
@@ -122,10 +180,49 @@ fun Greeting(
     modifier: Modifier = Modifier,
     server: String = "dns.adguard-dns.com",
     onEditClick: () -> Unit = {},
-    checkForUpdate: ((String?) -> Unit) -> Unit = {}
+    checkForUpdate: ((String?) -> Unit) -> Unit = {},
+    settingsPage: SettingsViewModel.Page = SettingsViewModel.Page.MAIN
 ) {
-    val localContext = LocalContext.current
+
+    var selectedItem by remember { mutableIntStateOf(0) }
+    val items = remember { listOf("Home", "Stats", "Settings") }
+    val selectedIcons = remember { listOf(Icons.Filled.Home, Icons.Filled.Insights, Icons.Filled.Settings) }
+    val unselectedIcons = remember {
+        listOf(Icons.Outlined.Home, Icons.Outlined.Insights, Icons.Outlined.Settings)
+    }
+    val context = LocalContext.current
+    val onNavigateToProviders = remember(context) {
+        { providerId: String ->
+            val intent = Intent(context, ProviderLoginActivity::class.java).apply {
+                putExtra("provider", providerId)
+            }
+            context.startActivity(intent)
+        }
+    }
     val latestVersion = remember { mutableStateOf<String?>(null) }
+
+    val settingsViewModel: SettingsViewModel = viewModel()
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            settingsViewModel.refreshNotification()
+            Log.d("Permission", "Permission Granted")
+            val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                putExtra(Settings.EXTRA_CHANNEL_ID, "dns_status_channel")
+            }
+            context.startActivity(intent)
+        } else {
+            Log.d("Permission", "Permission Denied")
+            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            }
+            context.startActivity(intent)
+        }
+    }
+
+
 
     if (!BuildConfig.IS_FOSS) {
         LaunchedEffect(Unit) {
@@ -143,175 +240,94 @@ fun Greeting(
         }
     }
 
-
-
-
-
+    BackHandler(enabled = selectedItem != 0) {
+        selectedItem = 0
+    }
 
     Scaffold(
-        /**topBar  = {
-            IconButton(
-                onClick = {  },
-                modifier = Modifier
-                    .padding(16.dp),
+        bottomBar = {
+            AnimatedVisibility(
+                visible = !(settingsPage != SettingsViewModel.Page.MAIN && selectedItem == 2),
+                enter = androidx.compose.animation.slideInVertically { it } + fadeIn(),
+                exit = androidx.compose.animation.slideOutVertically { it } + fadeOut()
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Settings,
-                    contentDescription = "Settings"
-                )
+                NavigationBar {
+                    items.forEachIndexed { index, item ->
+                        if ((index == 1 && settingsViewModel.selectedProvider.collectAsState().value is DnsProvider.Enhanced) || index != 1)
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    if (selectedItem == index) selectedIcons[index] else unselectedIcons[index],
+                                    contentDescription = item,
+                                )
+                            },
+                            label = { Text(item) },
+                            selected = selectedItem == index,
+                            onClick = { selectedItem = index },
+                        )
+                    }
+
+                }
             }
-        } **/
-    ) {
-        innerPadding ->
-        Column(modifier = modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-            .padding(16.dp)) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = if (isEnabled) "Goooodbye,\nAds!" else "Blocker\nDisabled",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontSize = 48.sp,
-                    lineHeight = 48.sp,
 
 
+        },
+        contentWindowInsets = WindowInsets(0)
+    ) { innerPadding ->
+        AnimatedContent(
+            targetState = selectedItem,
+            transitionSpec = {
+                ((fadeIn(animationSpec = tween(220)) +
+                        scaleIn(
+                            initialScale = 0.93f,
+                            animationSpec = tween(300, easing = LinearOutSlowInEasing)
+                        )) togetherWith
+                        (fadeOut(animationSpec = tween(120)) +
+                                scaleOut(
+                                    targetScale = 1.07f,
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                )))
+                    .using(SizeTransform(clip = false))
+            },
+            label = "MainContentTransition"
+        ) { targetIndex ->
+            when (targetIndex) {
+                0 -> {
+                    HomeScreen(
+                        isEnabled = isEnabled,
+                        runningTime = runningTime,
+                        onToggle = onToggle,
+                        server = server,
+                        onEditClick = {
+                            selectedItem = 2
+                            onEditClick()
+                        },
+                        innerPadding = innerPadding,
+                        onSettingsClick = {
+                            selectedItem = 2
+                        }
                     )
-                Spacer(modifier = Modifier.height(32.dp))
-                LazyColumn() {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column {
-                                Text(text = "DNS Ad Blocker")
-                                Text(
-                                    text = if (isEnabled) "Running" else "Not running",
-                                    color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                                )
-                            }
-                            IconButton(
-                                modifier = Modifier
-                                    .align(Alignment.Top),
-                                onClick = {
-                                    localContext.startActivity(Intent(localContext,
-                                        SettingsActivity::class.java))
 
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Settings,
-                                    contentDescription = "Settings"
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column {
-                                Text(text = "Server")
-                                Text(text = server)
-                            }
-                            IconButton(
-                                modifier = Modifier
-                                    .align(Alignment.Top),
-                                onClick = onEditClick,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Edit,
-                                    contentDescription = "Change DNS Server"
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(text = if (isEnabled) "Uptime" else "")
-                        Text(text = if (isEnabled) "$runningTime" else "")
-                    }
+                }
+
+                1 -> StatsScreen(
+                    innerPadding
+                )
+
+                2 -> {
+                    SettingsTabRouter(
+                        modifier = Modifier.padding(innerPadding),
+                        onNavigateToProvidersActivity = onNavigateToProviders,
+                        permissionLauncher = permissionLauncher,
+                        innerPadding = innerPadding
+                    )
                 }
             }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            DnsSwitch(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally),
-                isEnabled = isEnabled,
-                onToggle = onToggle
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
         }
+
     }
 }
 
-@Composable
-fun UpdateDialog(
-    version: String,
-    onClose: () -> Unit = {},
-) {
-    val context = LocalContext.current
-    AlertDialog(
-        icon = {
-            Icon(imageVector = Icons.Filled.Update, contentDescription = "Update Icon")
-        },
-        title = {
-            Text(text = "New Update")
-        },
-        text = {
-            Text(text = "Version v$version is available.\nWould you like to download it?")
-        },
-        onDismissRequest = {
-            onClose()
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val url = "https://github.com/eyalm2000/adns/releases"
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                    try { 
-                        context.startActivity(intent) 
-                    } catch (e: android.content.ActivityNotFoundException) {
-                        android.util.Log.e("MainActivity", "No browser found to open release URL", e)
-                    }
-                    onClose()
-                }
-            ) {
-                Text("Download")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    onClose()
-                }
-            ) {
-                Text("Dismiss")
-            }
-        }
-    )
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun UpdateDialogPreview() {
-    AdnsTheme {
-        UpdateDialog(
-            version = "1.0.0",
-            onClose = {}
-        )
-    }
-}
 
 @Preview(showBackground = true)
 @Composable

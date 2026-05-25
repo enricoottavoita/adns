@@ -86,6 +86,7 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
                 if (granted) {
                     isPermissionGranted = true
                     Shizuku.removeRequestPermissionResultListener(REQUEST_PERMISSION_RESULT_LISTENER)
+
                     nextStep()
                 }
                 delay(1000)

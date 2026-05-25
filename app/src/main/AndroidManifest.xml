@@ -6,11 +6,11 @@
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
-
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
+        android:name=".AdnsApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -20,13 +20,21 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Adns">
         <activity
+            android:name=".ProviderLoginActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false"
+            android:label="@string/title_activity_provider_login"
+            android:theme="@style/Theme.Adns" />
+        <activity
             android:name=".SettingsActivity"
             android:exported="false"
+            android:windowSoftInputMode="adjustResize"
             android:label="@string/title_activity_settings"
             android:theme="@style/Theme.Adns" />
         <activity
             android:name=".OnboardingActivity"
             android:exported="false"
+            android:windowSoftInputMode="adjustResize"
             android:label="@string/title_activity_onboarding"
             android:theme="@style/Theme.Adns" />
         <activity
@@ -49,7 +57,6 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-
         <receiver android:name=".services.ToggleReceiver" />
 
         <service

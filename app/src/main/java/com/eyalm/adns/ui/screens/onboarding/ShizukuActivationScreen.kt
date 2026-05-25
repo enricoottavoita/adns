@@ -1,4 +1,4 @@
-package com.eyalm.adns.ui.screens
+package com.eyalm.adns.ui.screens.onboarding
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding

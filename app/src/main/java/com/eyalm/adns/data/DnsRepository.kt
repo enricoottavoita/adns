@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.database.ContentObserver
@@ -18,6 +19,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.eyalm.adns.MainActivity
 import com.eyalm.adns.R
+import com.eyalm.adns.data.models.DnsProvider
+import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.services.AdnsTileService
 import com.eyalm.adns.services.ToggleReceiver
 import kotlinx.coroutines.CoroutineScope
@@ -34,7 +37,6 @@ class DnsRepository(private val context: Context) {
     private val resolver = context.contentResolver
     private val sharedPrefs = context.getSharedPreferences("adns_settings", Context.MODE_PRIVATE)
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
 
     init {
         createNotificationChannel()
@@ -88,9 +90,10 @@ class DnsRepository(private val context: Context) {
     }.distinctUntilChanged()
 
 
-    fun setAdBlockingState(enabled: Boolean, url: String = getDnsUrl()): kotlinx.coroutines.Job {
+    fun setAdBlockingState(enabled: Boolean): kotlinx.coroutines.Job {
         return repositoryScope.launch {
             try {
+                val url = getDnsUrl() ?: throw IllegalStateException("No DNS URL configured")
                 if (enabled) {
                     Settings.Global.putString(
                         resolver,
@@ -121,26 +124,102 @@ class DnsRepository(private val context: Context) {
         require(url.isNotBlank() && url.matches(Regex("""^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}$"""))) {
             "Invalid DNS hostname"
         }
+
+        val matchedStandard = DnsProviders.getAllProviders
+            .filterIsInstance<DnsProvider.Standard>()
+            .find { it.hostname == url }
+
+        val edit = sharedPrefs.edit()
+
+        if (matchedStandard != null) {
+            edit.putString("selected_provider_id", matchedStandard.id)
+        } else {
+
+            edit.putString("selected_provider_id", "custom")
+            edit.putString("custom_url", url)
+        }
+
+        edit.apply()
+
+
         val isActive = isAdBlockingActive()
-        sharedPrefs.edit().putString("custom_url", url).apply()
-        Log.d("adnsp", "$isActive")
         if (isActive) {
-            setAdBlockingState(true, url)
+            setAdBlockingState(true)
         }
     }
 
-    fun getDnsUrl(): String {
-        return sharedPrefs.getString("custom_url", DnsConstants.ADGUARD_DNS) ?: DnsConstants.ADGUARD_DNS
+
+    fun getSelectedProvider(): DnsProvider {
+
+        val savedId = sharedPrefs.getString("selected_provider_id", DnsProviders.ADGUARD.id) ?: DnsProviders.ADGUARD.id
+
+        val provider = DnsProviders.getAllProviders.find { it.id == savedId }
+
+        if (provider != null) return provider
+
+        val customUrl = sharedPrefs.getString("custom_url", "") ?: ""
+        return DnsProvider.Custom(customUrl)
+
+    }
+
+    fun setProvider(providerId: String, url: String? = null) {
+
+        val isActive = isAdBlockingActive()
+
+        val edit = sharedPrefs.edit()
+        edit.putString("selected_provider_id", providerId)
+
+        Log.d("DnsRepository", "Setting provider to $providerId")
+
+        if (providerId == "custom") {
+            require(!url.isNullOrBlank() && android.util.Patterns.DOMAIN_NAME.matcher(url).matches()) {
+                "Invalid DNS hostname"
+            }
+            edit.putString("custom_url", url)
+        } else if (providerId == "nextdns" && !url.isNullOrBlank()) {
+            edit.putString("enhanced_url", url)
+        }
+
+        edit.apply()
+
+        if (isActive) {
+            val newUrl = getDnsUrl()
+            if (newUrl != null) {
+                setAdBlockingState(true)
+            } else throw IllegalStateException("No DNS URL configured")
+        }
+
+
+    }
+
+
+    fun getDnsUrl(): String? {
+        val selectedProvider = getSelectedProvider()
+
+        return when (selectedProvider) {
+            is DnsProvider.Standard -> selectedProvider.hostname
+            is DnsProvider.Custom -> selectedProvider.userUrl
+            is DnsProvider.Enhanced -> sharedPrefs.getString("enhanced_url", null)
+        }
+
     }
 
     fun getDnsUrlFlow(): Flow<String> = callbackFlow {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "custom_url") {
-                trySend(getDnsUrl())
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "custom_url" || key == "selected_provider_id" || key == "enhanced_url") {
+                val url = getDnsUrl()
+                if (url != null) {
+                    trySend(url)
+                }
             }
         }
         sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
-        trySend(getDnsUrl())
+        val url = getDnsUrl()
+        if (url != null) {
+            trySend(url)
+        } else {
+            throw IllegalStateException("No DNS URL configured")
+        }
         awaitClose {
             sharedPrefs.unregisterOnSharedPreferenceChangeListener(listener)
         }
