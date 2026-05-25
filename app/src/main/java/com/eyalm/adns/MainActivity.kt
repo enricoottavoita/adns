@@ -263,7 +263,7 @@ fun Greeting(
         AnimatedContent(
             targetState = selectedItem,
             transitionSpec = {
-                ((fadeIn(animationSpec = tween(220, delayMillis = 80)) +
+                ((fadeIn(animationSpec = tween(220)) +
                         scaleIn(
                             initialScale = 0.93f,
                             animationSpec = tween(300, easing = LinearOutSlowInEasing)
