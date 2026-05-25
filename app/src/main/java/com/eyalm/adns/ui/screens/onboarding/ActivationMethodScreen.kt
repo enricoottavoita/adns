@@ -1,7 +1,9 @@
 package com.eyalm.adns.ui.screens.onboarding
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
@@ -78,9 +80,10 @@ fun ActivationMethodScreen(
             }
             item {
                 Text(
-                    text = "Please choose an activation method.",
+                    text = "Please choose an activation method.\nThe activation is a one-time process. After the activation, you’ll be able to use the app flawlessly.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.height(4.dp))
             }
 
             item {

@@ -77,7 +77,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.Top
                 ) {
                     Column {
-                        Text(text = "DNS Ad Blocker")
+                        Text(text = "Private DNS")
                         Text(
                             text = if (isEnabled) "Running" else "Not running",
                             color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
