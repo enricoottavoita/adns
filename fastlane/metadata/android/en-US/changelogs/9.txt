@@ -1,0 +1,3 @@
+- The NextDNS stats page now displays much more details including block reasons, active devices, IPs, countries, and more.
+- You can now set a custom device name in the settings so requests from your device appear with that name in logs and statistics.
+- You can now log in directly using a NextDNS API key or use accounts that have 2FA enabled.
