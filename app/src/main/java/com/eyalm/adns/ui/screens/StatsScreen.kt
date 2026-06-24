@@ -17,11 +17,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
@@ -31,10 +33,20 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.animation.core.InfiniteRepeatableSpec
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,11 +65,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.eyalm.adns.data.ListCard
 import com.eyalm.adns.data.ListIcon
+import com.eyalm.adns.data.PercentCard
+import com.eyalm.adns.data.StatsRegistry
 import com.eyalm.adns.data.network.NextDnsDomainData
 import com.eyalm.adns.data.network.toHexId
+import com.eyalm.adns.ui.components.GenericStatsListCard
+import com.eyalm.adns.ui.components.GenericStatsPercentCard
 import com.eyalm.adns.ui.components.ListIconView
-import com.eyalm.adns.viewmodel.MainViewModel
+import com.eyalm.adns.viewmodel.CardState
+import com.eyalm.adns.viewmodel.StatsViewModel
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -65,7 +83,7 @@ import java.util.Locale
 fun StatsScreen(
     innerPadding: PaddingValues,
     modifier: Modifier = Modifier,
-    viewModel: MainViewModel = viewModel()
+    statsViewModel: StatsViewModel = viewModel(),
 ) {
     val filterOptions = remember { listOf("24 hours", "7 days", "30 days") }
 
@@ -80,77 +98,125 @@ fun StatsScreen(
         filterMap.entries.associate { it.value to it.key }
     }
 
-    val stats by viewModel.stats.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val currentFilter by viewModel.currentFilter.collectAsState()
+    val stats by statsViewModel.stats.collectAsState()
+    val errorMessage by statsViewModel.errorMessage.collectAsState()
+    val currentFilter by statsViewModel.currentFilter.collectAsState()
+    val isRefreshing by statsViewModel.isRefreshing.collectAsState()
+    val cardStates by statsViewModel.states.collectAsState()
+    val state = rememberPullToRefreshState()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(innerPadding)
-            .statusBarsPadding()
-    ) {
-        if (stats == null && errorMessage.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularWavyProgressIndicator(modifier = Modifier.size(64.dp))
-            }
-        } else if (errorMessage.isNotEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(errorMessage)
-            }
-        } else {
-            val allowedSeries = stats!!.first.data.firstOrNull { it.status == "default" || it.status == "allowed" }?.queries ?: emptyList()
-            val blockedSeries = stats!!.first.data.firstOrNull { it.status == "blocked" }?.queries ?: emptyList()
+    val infiniteTransition = rememberInfiniteTransition(label = "refresh")
+    val animatedProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "progress"
+    )
+    
 
-            val size = minOf(allowedSeries.size, blockedSeries.size)
-            val totalPoints = (0 until size).map { i -> (allowedSeries[i] + blockedSeries[i]).toFloat() }
-            val blockedPoints = (0 until size).map { i -> blockedSeries[i].toFloat() }
-            val maxQueries = (totalPoints.maxOrNull() ?: 1f).coerceAtLeast(1f)
-
-            val totalQueriesSum = allowedSeries.sum() + blockedSeries.sum()
-            val blockedQueriesSum = blockedSeries.sum()
-            val blockedPercent = if (totalQueriesSum > 0) (blockedQueriesSum.toFloat() / totalQueriesSum * 100).toInt() else 0
-
-            LazyColumn(
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { statsViewModel.refreshStats() },
+        modifier = modifier,
+        state = state,
+        indicator = {
+            PullToRefreshDefaults.IndicatorBox(
+                state = state,
+                isRefreshing = isRefreshing,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .align(Alignment.TopCenter)
+                    .padding(top = 24.dp),
+                containerColor = Color.Transparent,
+                maxDistance = 110.dp
+
             ) {
-
-                item { Spacer(modifier = Modifier.height(8.dp)) }
-
-                item {
-                    TotalQueriesCard(
-                        totalCount = formatInteger(totalQueriesSum),
-                        blockedCount = "${formatInteger(blockedQueriesSum)} ($blockedPercent%) blocked",
-                        totalQueriesPoints = totalPoints,
-                        blockedQueriesPoints = blockedPoints,
-                        maxQueries = maxQueries,
-                        filterOptions = filterOptions,
-                        selectedFilter = reverseFilterMap[currentFilter] ?: "30 days",
-                        onFilterSelected = { filter ->
-                            viewModel.getPeriod(filterMap[filter] ?: "-30d")
-                        },
-                    )
+                ContainedLoadingIndicator(
+                    progress = { if (isRefreshing) animatedProgress else state.distanceFraction },
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
+                .statusBarsPadding()
+        ) {
+            if (stats == null && errorMessage.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularWavyProgressIndicator(modifier = Modifier.size(64.dp))
                 }
-
-                item {
-                    BlockedQueriesCard(
-                        domains = stats!!.second.data
-                    )
+            } else if (errorMessage.isNotEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(errorMessage)
                 }
-                item { Spacer(modifier = Modifier.height(24.dp)) }
+            } else {
+                val allowedSeries =
+                    stats!!.data.firstOrNull { it.status == "default" || it.status == "allowed" }?.queries
+                        ?: emptyList()
+                val blockedSeries =
+                    stats!!.data.firstOrNull { it.status == "blocked" }?.queries
+                        ?: emptyList()
+
+                val size = minOf(allowedSeries.size, blockedSeries.size)
+                val totalPoints =
+                    (0 until size).map { i -> (allowedSeries[i] + blockedSeries[i]).toFloat() }
+                val blockedPoints = (0 until size).map { i -> blockedSeries[i].toFloat() }
+                val maxQueries = (totalPoints.maxOrNull() ?: 1f).coerceAtLeast(1f)
+
+                val totalQueriesSum = allowedSeries.sum() + blockedSeries.sum()
+                val blockedQueriesSum = blockedSeries.sum()
+                val blockedPercent =
+                    if (totalQueriesSum > 0) (blockedQueriesSum.toFloat() / totalQueriesSum * 100).toInt() else 0
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+
+                    item { Spacer(modifier = Modifier.height(8.dp)) }
+
+                    item {
+                        TotalQueriesCard(
+                            totalCount = formatInteger(totalQueriesSum),
+                            blockedCount = "${formatInteger(blockedQueriesSum)} ($blockedPercent%) blocked",
+                            totalQueriesPoints = totalPoints,
+                            blockedQueriesPoints = blockedPoints,
+                            maxQueries = maxQueries,
+                            filterOptions = filterOptions,
+                            selectedFilter = reverseFilterMap[currentFilter] ?: "30 days",
+                            onFilterSelected = { filter ->
+                                statsViewModel.getPeriod(filterMap[filter] ?: "-30d")
+                            },
+                        )
+                    }
+                    items(StatsRegistry.cards, key = { it.key }) { card ->
+                        val state = cardStates[card.key] ?: CardState.Loading
+                        when (card) {
+                            is ListCard -> GenericStatsListCard(card, state)
+                            is PercentCard -> GenericStatsPercentCard(card, state)
+                        }
+                    }
+
+                    item { Spacer(modifier = Modifier.height(24.dp)) }
+                }
             }
         }
     }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -334,7 +400,7 @@ fun BlockedQueryRow(item: NextDnsDomainData) {
 }
 
 @Composable
-fun HighlightedDomainText(domain: String) {
+internal fun HighlightedDomainText(domain: String) {
     val parts = domain.split(".")
     val annotatedString = if (parts.size >= 2) {
         val baseDomain = parts.takeLast(2).joinToString(".")

@@ -10,6 +10,7 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.QueryMap
 
 interface NextDnsApi {
 
@@ -126,5 +127,15 @@ interface NextDnsApi {
         @Path("page") page: String,
         @Path("hexId") hexId: String
     ): Response<Unit>
+
+    // stats
+
+    @GET("profiles/{profileId}/analytics/{feature}")
+    suspend fun getAnalyticsFeature(
+        @Path("profileId") profileId: String,
+        @Path("feature") feature: String,
+        @QueryMap params: Map<String, String>
+    ): JsonObject
+
 
 }

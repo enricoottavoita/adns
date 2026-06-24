@@ -318,6 +318,17 @@ class ApiRepository(private val context: Context) {
         } catch (e: Exception) { false }
     }
 
+    suspend fun getAnalytics(feature: String, params: Map<String, String>): JsonArray? {
+        return try {
+            val profileId = requireAuth()
+            ApiClient.nextDnsApi.getAnalyticsFeature(profileId, feature, params)
+                .getAsJsonArray("data")
+        } catch (e: Exception) {
+            e("ApiRepository", "Error fetching analytics/$feature", e)
+            null
+        }
+    }
+
 
 
     // old

@@ -1,6 +1,7 @@
 package com.eyalm.adns.ui.components
 
 import android.graphics.BitmapFactory
+import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,8 @@ import com.eyalm.adns.data.ListIcon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
+
+private val imageCache = LruCache<String, ImageBitmap>(50)
 
 @Composable
 fun ListIconView(
@@ -88,14 +91,19 @@ fun ListIconView(
 
 @Composable
 fun rememberAsyncImage(url: String): ImageBitmap? {
-    var imageBitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+    var imageBitmap by remember(url) { mutableStateOf<ImageBitmap?>(imageCache.get(url)) }
+    
+    if (imageBitmap != null) return imageBitmap
+
     LaunchedEffect(url) {
         withContext(Dispatchers.IO) {
             try {
                 URL(url).openStream().use { stream ->
                     val bmp = BitmapFactory.decodeStream(stream)
                     if (bmp != null) {
-                        imageBitmap = bmp.asImageBitmap()
+                        val bitmap = bmp.asImageBitmap()
+                        imageCache.put(url, bitmap)
+                        imageBitmap = bitmap
                     }
                 }
             } catch (e: Exception) {
