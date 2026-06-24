@@ -30,6 +30,7 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
     var profiles by mutableStateOf(listOf<NextDnsProfile>())
         private set
 
+
     fun nextStep() {
 
         currentStep = when (currentStep) {
@@ -64,6 +65,26 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
                     Toast.makeText(getApplication(), result.message, Toast.LENGTH_LONG).show()
                     currentStep = ProviderLoginActivity.Step.LOGIN
                 }
+            }
+        }
+    }
+
+    suspend fun providerLoginWithApiKey(apiKey: String, providrId: String) {
+        currentStep = ProviderLoginActivity.Step.LOADING
+        if (providrId == "nextdns") {
+            val result = apiRepository.NextDnsLoginWithApiKey(apiKey)
+            when (result) {
+                is LoginResult.Success -> {
+                    val profilesList = apiRepository.getNextDnsProfiles()
+                    profiles = profilesList
+                    nextStep()
+                }
+                is LoginResult.Error -> {
+                    Toast.makeText(getApplication(), result.message, Toast.LENGTH_LONG).show()
+                    currentStep = ProviderLoginActivity.Step.LOGIN
+                }
+
+                else -> {}
             }
         }
     }

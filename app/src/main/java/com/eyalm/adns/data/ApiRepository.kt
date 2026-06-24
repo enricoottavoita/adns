@@ -88,6 +88,24 @@ class ApiRepository(private val context: Context) {
         }
     }
 
+    suspend fun NextDnsLoginWithApiKey(key: String): LoginResult = withContext(Dispatchers.IO) {
+        val previousKey = keyManager.getApiKey()
+        keyManager.saveApiKey(key)
+        try {
+            ApiClient.nextDnsApi.getProfiles()
+            keyManager.saveEmail("API Key Account")
+            LoginResult.Success
+        } catch (e: Exception) {
+            if (previousKey != null) {
+                keyManager.saveApiKey(previousKey)
+            } else {
+                keyManager.destroyApiKey()
+            }
+            e("ApiRepository", "API Key verification failed", e)
+            LoginResult.Error("Invalid API Key: ${e.localizedMessage ?: "Unknown error"}")
+        }
+    }
+
     fun getCurrentNextDnsProfileId(): String? {
         return sharedPrefs.getString("enhanced_url", null)?.let { url ->
             val cleanUrl = url.removeSuffix(".dns.nextdns.io")

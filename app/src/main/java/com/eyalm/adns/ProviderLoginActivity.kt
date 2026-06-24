@@ -118,6 +118,11 @@ class ProviderLoginActivity : ComponentActivity() {
                                             viewModel.providerLogin(email, password, provider.id, code)
                                         }
                                     },
+                                    onApiKeyClick = { apiKey ->
+                                        lifecycleScope.launch {
+                                            viewModel.providerLoginWithApiKey(apiKey, provider.id)
+                                        }
+                                    },
                                     onBackClick = {
                                         finish()
                                     }
