@@ -4,7 +4,12 @@ import com.google.gson.annotations.SerializedName
 
 data class NextDnsLoginRequest(
     @SerializedName("email") val email: String,
-    @SerializedName("password") val password: String
+    @SerializedName("password") val password: String,
+    @SerializedName("code") val code: String? = null
+)
+
+data class NextDnsLoginResponse(
+    @SerializedName("requiresCode") val requiresCode: Boolean? = null
 )
 
 data class NextDnsCreateApiKeyResponse(

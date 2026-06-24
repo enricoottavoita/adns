@@ -11,7 +11,9 @@ import com.eyalm.adns.data.network.NextDnsDomainsResponse
 import com.eyalm.adns.data.network.NextDnsLoginRequest
 import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
+import com.eyalm.adns.data.network.NextDnsLoginResponse
 import com.eyalm.adns.data.network.toHexId
+import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +29,12 @@ data class Blocklist(
     val isEnabled: Boolean
 )
 
+sealed class LoginResult {
+    object Success : LoginResult()
+    object RequiresTwoFactor : LoginResult()
+    data class Error(val message: String) : LoginResult()
+}
+
 class ApiRepository(private val context: Context) {
 
     private val sharedPrefs = context.getSharedPreferences("adns_settings", Context.MODE_PRIVATE)
@@ -34,46 +42,49 @@ class ApiRepository(private val context: Context) {
     val keyManager = TokenManager(context)
 
 
-    suspend fun NextDnsLogin(email: String, password: String): Boolean {
+    suspend fun NextDnsLogin(email: String, password: String, code: String? = null): LoginResult {
         return try {
-            val loginRequest = NextDnsLoginRequest(email, password)
+            val loginRequest = NextDnsLoginRequest(email, password, code)
             val response = ApiClient.nextDnsApi.login(loginRequest)
+            val responseText = response.body()?.string() ?: response.errorBody()?.string() ?: ""
 
             if (response.isSuccessful) {
+                if (responseText.trim() == "OK") {
+                    val cookiesList: List<String> = response.headers().values("Set-Cookie")
 
-                val cookiesList: List<String> = response.headers().values("Set-Cookie")
+                    var fullCookieString = ""
+                    for (cookieLine in cookiesList) {
+                        val coreCookie = cookieLine.substringBefore(";")
+                        fullCookieString += "$coreCookie; "
+                    }
 
-                var fullCookieString = ""
-                for (cookieLine in cookiesList) {
-                    val coreCookie = cookieLine.substringBefore(";")
-                    fullCookieString += "$coreCookie; "
+                    val apiKey = ApiClient.nextDnsApi.createApiKey(fullCookieString.trim()).body()?.key
+                        ?: throw IllegalStateException("Failed to retrieve API key after login")
+                    keyManager.saveApiKey(apiKey)
+                    keyManager.saveEmail(email)
+                    Log.d("ApiRepository", "Login successful, API key saved securely")
+                    return LoginResult.Success
                 }
-                /**
-                sharedPrefs.edit()
-                .putString(NEXTDNS_COOKIE_KEY, fullCookieString.trim())
-                .apply()
-                 */
-
-
-                val apiKey = ApiClient.nextDnsApi.createApiKey(fullCookieString.trim()).body()?.key
-                    ?: throw IllegalStateException("Failed to retrieve API key after login")
-                keyManager.saveApiKey(apiKey)
-                keyManager.saveEmail(email)
-                Log.d("ApiRepository", "Login successful, API key saved securely")
-                Log.d("ApiRepository", "API key: $apiKey")
-                true
-            } else {
-                e("ApiRepository", "Login Failed: ${response.code()} - ${response.message()}")
-                false
             }
 
+            val nextDnsResponse = try {
+                Gson().fromJson(responseText, NextDnsLoginResponse::class.java)
+            } catch (e: Exception) {
+                null
+            }
+
+            if (nextDnsResponse?.requiresCode == true) {
+                LoginResult.RequiresTwoFactor
+            } else {
+                val errorMessage = if (responseText.isNotEmpty()) responseText else "Login Failed: ${response.code()}"
+                e("ApiRepository", "Login Failed: $errorMessage")
+                LoginResult.Error(errorMessage)
+            }
 
         } catch (e: Exception) {
             e("ApiRepository", "Network Error during login", e)
-
-            false
+            LoginResult.Error(e.message ?: "Unknown error")
         }
-
     }
 
     fun getCurrentNextDnsProfileId(): String? {

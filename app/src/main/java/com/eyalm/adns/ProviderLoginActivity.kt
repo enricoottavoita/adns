@@ -112,10 +112,10 @@ class ProviderLoginActivity : ComponentActivity() {
                             Step.LOGIN -> {
                                 Login(
                                     provider = provider,
-                                    onNextClick = { email, password ->
+                                    twoFactorAuthVisible = viewModel.showTwoFactorAuth,
+                                    onNextClick = { email, password, code ->
                                         lifecycleScope.launch {
-                                            viewModel.nextStep()
-                                            viewModel.providerLogin(email, password, provider.id)
+                                            viewModel.providerLogin(email, password, provider.id, code)
                                         }
                                     },
                                     onBackClick = {

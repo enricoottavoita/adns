@@ -10,6 +10,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyalm.adns.ProviderLoginActivity
 import com.eyalm.adns.data.ApiRepository
+import com.eyalm.adns.data.LoginResult
 import com.eyalm.adns.data.network.NextDnsProfile
 import kotlinx.coroutines.launch
 
@@ -18,7 +19,12 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
     private val apiRepository = ApiRepository(application)
     private val dnsRepository = com.eyalm.adns.data.DnsRepository(application)
 
+
+
     var currentStep by mutableStateOf(ProviderLoginActivity.Step.LOGIN)
+        private set
+
+    var showTwoFactorAuth by mutableStateOf(false)
         private set
 
     var profiles by mutableStateOf(listOf<NextDnsProfile>())
@@ -35,23 +41,30 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    suspend fun providerLogin(email: String, password: String, providrId: String) {
+    suspend fun providerLogin(email: String, password: String, providrId: String, code: String? = null) {
         currentStep = ProviderLoginActivity.Step.LOADING
         if (providrId == "nextdns") {
-            val loginSuccess = apiRepository.NextDnsLogin(email, password)
-            if (loginSuccess) {
-                val profilesList = apiRepository.getNextDnsProfiles()
-                profiles = profilesList
-                Log.d(
-                    "ProviderLoginViewModel",
-                    "Login attempt for provider $providrId with email $email"
-                )
-                nextStep()
-                return
-            } else {
-                Toast.makeText(getApplication(), "Login failed. Please check your credentials.", Toast.LENGTH_LONG).show()
+            val result = apiRepository.NextDnsLogin(email, password, code)
+            when (result) {
+                is LoginResult.Success -> {
+                    val profilesList = apiRepository.getNextDnsProfiles()
+                    profiles = profilesList
+                    Log.d(
+                        "ProviderLoginViewModel",
+                        "Login attempt for provider $providrId with email $email"
+                    )
+                    nextStep()
+                }
+                is LoginResult.RequiresTwoFactor -> {
+                    showTwoFactorAuth = true
+                    currentStep = ProviderLoginActivity.Step.LOGIN
+                    Toast.makeText(getApplication(), "Two-factor authentication required.", Toast.LENGTH_SHORT).show()
+                }
+                is LoginResult.Error -> {
+                    Toast.makeText(getApplication(), result.message, Toast.LENGTH_LONG).show()
+                    currentStep = ProviderLoginActivity.Step.LOGIN
+                }
             }
-            currentStep = ProviderLoginActivity.Step.LOGIN
         }
     }
 

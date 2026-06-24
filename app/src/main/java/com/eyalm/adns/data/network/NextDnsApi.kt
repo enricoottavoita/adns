@@ -16,7 +16,7 @@ interface NextDnsApi {
     @POST("accounts/@login")
     suspend fun login(
         @Body request: NextDnsLoginRequest
-    ): Response<Unit>
+    ): Response<okhttp3.ResponseBody>
 
     @POST("account/apiKeys")
     suspend fun createApiKey(

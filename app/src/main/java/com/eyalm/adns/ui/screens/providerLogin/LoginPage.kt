@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
@@ -39,12 +40,15 @@ import com.eyalm.adns.ui.theme.pageTitle
 
 @Composable
 fun Login(provider: DnsProvider,
-          onNextClick: (email: String, password: String) -> Unit,
-          onBackClick: () -> Unit
+          onNextClick: (email: String, password: String, code: String?) -> Unit,
+          onBackClick: () -> Unit,
+          twoFactorAuthVisible: Boolean = false
+
 ) {
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf<String?>(null) }
     var passwordVisible by remember { mutableStateOf(false) }
 
 
@@ -56,7 +60,7 @@ fun Login(provider: DnsProvider,
                 message = "",
                 buttonText = "Next",
                 enabled = true,
-                onNextClick = { onNextClick(email, password) }
+                onNextClick = { onNextClick(email, password, code) }
             )
         },
         content = { paddingValues ->
@@ -133,11 +137,36 @@ fun Login(provider: DnsProvider,
                     keyboardActions = KeyboardActions(
                         onDone = {
                             if (email.isNotBlank() && password.isNotBlank()) {
-                                onNextClick(email, password)
+                                onNextClick(email, password, code)
                             }
                         }
                     ),
                 )
+
+                if (twoFactorAuthVisible) {
+                    OutlinedTextField(
+                        value = code ?: "",
+                        onValueChange = { code = it },
+                        label = { Text("2FA Code") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { onNextClick(email, password, code) }
+                        )
+                    )
+                }
             }
 
         }
