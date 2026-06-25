@@ -1,8 +1,9 @@
 # ADNS
+[![RB Status](https://shields.rbtlog.dev/simple/com.eyalm.adns?style=for-the-badge)](https://shields.rbtlog.dev/com.eyalm.adns)
 
 ADNS is a lightweight DNS-based ad blocker for Android. No VPN, no background services, no battery drain, no hassle. NextDNS integration is built in for a seamless experience.
 
-Download it from [GitHub Releases](https://github.com/eyalm2000/adns/releases).
+Download it from [GitHub Releases](https://github.com/eyalm2000/adns/releases) or [IzzyOnDroid](https://apt.izzysoft.de/fdroid/index/apk/com.eyalm.adns)!
 
 ## Features
 
