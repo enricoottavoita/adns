@@ -1,4 +1,6 @@
 package com.eyalm.adns.viewmodel
+import com.eyalm.adns.R
+
 
 import android.app.Application
 import android.util.Log
@@ -89,7 +91,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             loadCards("-30d")
         } catch (e: Exception) {
             Log.e("StatsViewModel", "Error loading stats", e)
-            _errorMessage.value = "Cannot load stats"
+            _errorMessage.value = getApplication<Application>().getString(R.string.cannot_load_stats)
         }
     }
 

@@ -10,6 +10,11 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import com.eyalm.adns.data.LocaleHelper
+
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
@@ -49,9 +54,15 @@ fun AdnsTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    val context = LocalContext.current
+    val isRtl = LocaleHelper.getLanguage(context) in listOf("iw", "he")
+    val layoutDirection = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+
+    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

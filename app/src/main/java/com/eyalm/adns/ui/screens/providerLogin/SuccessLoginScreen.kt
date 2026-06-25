@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.providerLogin
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,8 +29,8 @@ fun SuccessLoginScreen(
         bottomBarContent = {
             StandardBottomBar(
                 onNextClick = onFinishClicked,
-                buttonText = "Finish",
-                message = "You're almost there!"
+                buttonText = stringResource(R.string.finish),
+                message = stringResource(R.string.youre_almost_there)
             )
         },
         content = { paddingValues ->
@@ -39,12 +42,12 @@ fun SuccessLoginScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Congratulations!",
+                    text = stringResource(R.string.congratulations),
                     style = MaterialTheme.typography.pageTitle,
                     modifier = Modifier.padding(top = 16.dp)
                 )
                 Text(
-                    text = "Your DNS settings have been updated.",
+                    text = stringResource(R.string.your_dns_settings_have_been_updated),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 IconVisual(Icons.Default.AccountCircle)

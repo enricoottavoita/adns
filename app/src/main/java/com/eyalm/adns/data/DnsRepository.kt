@@ -32,8 +32,8 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
-class DnsRepository(private val context: Context) {
-
+class DnsRepository(rawContext: Context) {
+    private val context: Context = com.eyalm.adns.data.LocaleHelper.onAttach(rawContext)
     private val resolver = context.contentResolver
     private val sharedPrefs = context.getSharedPreferences("adns_settings", Context.MODE_PRIVATE)
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -122,7 +122,7 @@ class DnsRepository(private val context: Context) {
 
     fun setCustomUrl(url: String) {
         require(url.isNotBlank() && url.matches(Regex("""^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}$"""))) {
-            "Invalid DNS hostname"
+            context.getString(R.string.invalid_dns_hostname)
         }
 
         val matchedStandard = DnsProviders.getAllProviders
@@ -173,7 +173,7 @@ class DnsRepository(private val context: Context) {
 
         if (providerId == "custom") {
             require(!url.isNullOrBlank() && android.util.Patterns.DOMAIN_NAME.matcher(url).matches()) {
-                "Invalid DNS hostname"
+                context.getString(R.string.invalid_dns_hostname)
             }
             edit.putString("custom_url", url)
         } else if (providerId == "nextdns" && !url.isNullOrBlank()) {
@@ -245,8 +245,8 @@ class DnsRepository(private val context: Context) {
         val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
 
         val toggleShortcut = ShortcutInfo.Builder(context, "toggle_dns")
-            .setShortLabel(if (isActive) "Disable Blocker" else "Enable Blocker")
-            .setLongLabel(if (isActive) "Disable Ad Blocker" else "Enable Ad Blocker")
+            .setShortLabel(if (isActive) context.getString(R.string.disable_blocker) else context.getString(R.string.enable_blocker))
+            .setLongLabel(if (isActive) context.getString(R.string.disable_ad_blocker) else context.getString(R.string.enable_ad_blocker))
             .setIcon(Icon.createWithResource(context, R.drawable.ic_launcher_monochrome))
             .setIntent(Intent(context, MainActivity::class.java).apply {
                 action = "com.eyalm.adns.TOGGLE_ACTION"
@@ -263,11 +263,11 @@ class DnsRepository(private val context: Context) {
 
     private fun createNotificationChannel() {
         val channelId = "dns_status_channel"
-        val name = "Ad Blocker state"
+        val name = context.getString(R.string.ad_blocker_state)
         val importance = NotificationManager.IMPORTANCE_LOW
 
         val channel = NotificationChannel(channelId, name, importance).apply {
-            description = "Shows the state of the Ad Blocker"
+            description = context.getString(R.string.shows_the_state_of_the_ad_blocker)
         }
 
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -298,15 +298,15 @@ class DnsRepository(private val context: Context) {
 
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_qs_adns)
-            .setContentTitle("Ad Blocker")
-            .setContentText(if (isActive) "Blocker Enabled" else "Blocker Disabled")
+            .setContentTitle(context.getString(R.string.ad_blocker))
+            .setContentText(if (isActive) context.getString(R.string.blocker_enabled) else context.getString(R.string.blocker_disabled))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(isActive)
             .setAutoCancel(false)
             .setContentIntent(pendingIntent)
             .addAction(
                 R.drawable.ic_qs_adns,
-                if (isActive) "Disable Blocker" else "Enable Blocker",
+                if (isActive) context.getString(R.string.disable_blocker) else context.getString(R.string.enable_blocker),
                 buttonPendingIntent
             )
             .build()

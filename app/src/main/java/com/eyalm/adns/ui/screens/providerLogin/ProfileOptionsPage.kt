@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.providerLogin
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,7 +60,7 @@ fun ProfileOptionPage(
         hideTopBar = true,
         bottomBarContent = {
             StandardBottomBar(
-                message = "Choose your profile.",
+                message = stringResource(R.string.choose_your_profile),
                 enabled = selectedProfile != null,
                 onNextClick = { selectedProfile?.let { onNextClick(it) } }
             )
@@ -72,8 +75,8 @@ fun ProfileOptionPage(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Spacer(Modifier.height(100.dp))
-                Text("Profile", style = MaterialTheme.typography.pageTitle)
-                Text("Choose your profile.")
+                Text(stringResource(R.string.profile), style = MaterialTheme.typography.pageTitle)
+                Text(stringResource(R.string.choose_your_profile))
                 Spacer(modifier = Modifier.height(8.dp))
                 ProfilesList(
                     profiles = profiles,
@@ -102,13 +105,13 @@ fun CreateProfileDialog(
             Icon(Icons.Default.Add, contentDescription = "Add Icon")
         },
         title = {
-            Text(text = "Create Profile")
+            Text(text = stringResource(R.string.create_profile))
         },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Profile Name") },
+                label = { Text(stringResource(R.string.profile_name)) },
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
             )
@@ -124,7 +127,7 @@ fun CreateProfileDialog(
                     }
                 }
             ) {
-                Text("Create")
+                Text(stringResource(R.string.create))
             }
         },
         dismissButton = {
@@ -133,7 +136,7 @@ fun CreateProfileDialog(
                     onDismissRequest()
                 }
             ) {
-                Text("Dismiss")
+                Text(stringResource(R.string.dismiss))
             }
         }
     )

@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.settings
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -88,7 +91,7 @@ fun BlocklistsScreen(
             } else {
                 item {
                     Text(
-                        text = "${provider.name} Blocklists",
+                        text = stringResource(R.string.blocklists, stringResource(provider.nameRes)),
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(top = 48.dp, bottom = 16.dp),

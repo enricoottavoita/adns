@@ -1,4 +1,6 @@
 package com.eyalm.adns.services
+import com.eyalm.adns.R
+
 
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -11,6 +13,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class AdnsTileService : TileService() {
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(com.eyalm.adns.data.LocaleHelper.onAttach(newBase))
+    }
 
     private val repository by lazy { DnsRepository(this) }
     private var job: Job? = null
@@ -58,7 +64,7 @@ class AdnsTileService : TileService() {
     private fun updateTile(isActive: Boolean) {
         val tile = qsTile ?: return
         tile.state = if (isActive) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-        tile.label = "ADNS AdBlock"
+        tile.label = getString(R.string.adns_adblock)
         tile.updateTile()
     }
 }

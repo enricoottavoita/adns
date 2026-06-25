@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.components
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,7 +31,7 @@ fun ProviderCard(
                     )
                     if (isEnhanced) {
                         Text(
-                            text = " (Enhanced)",
+                            text = stringResource(R.string.enhanced),
                             style = MaterialTheme.typography.titleMedium,
                             color = contentColor
                         )

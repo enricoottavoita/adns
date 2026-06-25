@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.ActivityResultLauncher
@@ -26,6 +29,7 @@ import com.eyalm.adns.ui.screens.settings.AccountSettingsScreen
 import com.eyalm.adns.ui.screens.settings.BlocklistsScreen
 import com.eyalm.adns.ui.screens.settings.GenericCategoryScreen
 import com.eyalm.adns.ui.screens.settings.GenericListScreen
+import com.eyalm.adns.ui.screens.settings.LanguageScreen
 import com.eyalm.adns.ui.screens.settings.MainSettingsScreen
 import com.eyalm.adns.ui.screens.settings.ProvidersScreen
 import com.eyalm.adns.viewmodel.SettingsViewModel
@@ -121,7 +125,7 @@ fun SettingsTabRouter(
             SettingsViewModel.Page.SECURITY -> {
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 GenericCategoryScreen(
-                    title = "Security",
+                    title = stringResource(R.string.security),
                     apiPage = "security",
                     toggles = SecuritySettings.toggles,
                     lists = SecuritySettings.lists,
@@ -132,7 +136,7 @@ fun SettingsTabRouter(
             SettingsViewModel.Page.PRIVACY -> {
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 GenericCategoryScreen(
-                    title = "Privacy",
+                    title = stringResource(R.string.privacy),
                     apiPage = "privacy",
                     toggles = PrivacySettings.toggles,
                     lists = PrivacySettings.lists,
@@ -143,7 +147,7 @@ fun SettingsTabRouter(
             SettingsViewModel.Page.PARENTAL_CONTROL -> {
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 GenericCategoryScreen(
-                    title = "Parental Control",
+                    title = stringResource(R.string.parental_control),
                     apiPage = "parentalcontrol",
                     toggles = ParentalControlSettings.toggles,
                     lists = ParentalControlSettings.lists,
@@ -154,7 +158,7 @@ fun SettingsTabRouter(
             SettingsViewModel.Page.SETTINGS_PAGE -> {
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 GenericCategoryScreen(
-                    title = "Settings",
+                    title = stringResource(R.string.settings),
                     apiPage = "settings",
                     toggles = SettingsPageSettings.toggles,
                     // We omit the 'lists' parameter here because it defaults to emptyList()
@@ -168,6 +172,10 @@ fun SettingsTabRouter(
                 GenericListScreen(
                     onBack = { viewModel.setPage(parentPage) }
                 )
+            }
+            SettingsViewModel.Page.LANGUAGE -> {
+                BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
+                LanguageScreen(onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) })
             }
         }
     }

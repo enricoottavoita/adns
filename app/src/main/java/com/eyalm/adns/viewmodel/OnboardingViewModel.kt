@@ -1,4 +1,6 @@
 package com.eyalm.adns.viewmodel
+import com.eyalm.adns.R
+
 
 import android.app.Application
 import android.content.ComponentName
@@ -139,7 +141,7 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
             }
         } catch (e: Exception) {
             Log.e("shizuku", "Shizuku not running or error: ${e.message}")
-            Toast.makeText(getApplication(), "Make sure shizuku is installed and started", Toast.LENGTH_LONG).show()
+            Toast.makeText(getApplication(), getApplication<Application>().getString(R.string.make_sure_shizuku_is_installed_and_started), Toast.LENGTH_LONG).show()
             previousStep()
             false
         }

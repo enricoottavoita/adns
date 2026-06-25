@@ -1,4 +1,7 @@
 package com.eyalm.adns
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import android.content.Intent
 import android.os.Bundle
@@ -54,8 +57,23 @@ import kotlinx.coroutines.launch
 
 class SettingsActivity : ComponentActivity() {
     private val viewModel: SettingsViewModel by viewModels()
+    private var lastAppliedLang: String? = null
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(com.eyalm.adns.data.LocaleHelper.onAttach(newBase))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val savedLang = com.eyalm.adns.data.LocaleHelper.getLanguage(this)
+        if (lastAppliedLang != null && lastAppliedLang != savedLang) {
+            recreate()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        com.eyalm.adns.data.LocaleHelper.applyLocale(this)
+        lastAppliedLang = com.eyalm.adns.data.LocaleHelper.getLanguage(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -132,13 +150,6 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        lifecycleScope.launch {
-
-        }
-
-    }
 }
 
 @Composable
@@ -158,11 +169,11 @@ fun DnsDialog(
             Icon(Icons.Filled.BroadcastOnPersonal, contentDescription = "DNS Server")
         },
         title = {
-            Text(text = "Set DNS Server")
+            Text(text = stringResource(R.string.set_dns_server))
         },
         text = {
             Column {
-                Text(text = "Choose a DNS server to use")
+                Text(text = stringResource(R.string.choose_a_dns_server_to_use))
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     Modifier
@@ -209,7 +220,7 @@ fun DnsDialog(
                         modifier = Modifier.padding(start = 16.dp)
                     ) {
                         Text(
-                            text = "Custom hostname:",
+                            text = stringResource(R.string.custom_hostname),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 16.sp
@@ -225,7 +236,7 @@ fun DnsDialog(
                             isError = !isAdGuard.value && !isCustomValid,
                             supportingText = {
                                 if (!isAdGuard.value && !isCustomValid && customUrlText.value.isNotEmpty()) {
-                                    Text("Invalid hostname")
+                                    Text(stringResource(R.string.invalid_hostname))
                                 }
                             }
                         )
@@ -244,7 +255,7 @@ fun DnsDialog(
                 },
                 enabled = isConfirmEnabled
             ) {
-                Text("Confirm")
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
@@ -253,7 +264,7 @@ fun DnsDialog(
                     onDismissRequest()
                 }
             ) {
-                Text("Dismiss")
+                Text(stringResource(R.string.dismiss))
             }
         }
     )

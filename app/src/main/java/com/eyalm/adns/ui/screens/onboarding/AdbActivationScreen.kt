@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.onboarding
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,7 +54,7 @@ fun AdbActivationScreen(onBack: () -> Unit = { }) {
         onBackClick = onBack,
         bottomBarContent = {
             Text(
-                text = "Waiting for permission...",
+                text = stringResource(R.string.waiting_for_permission),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -71,12 +74,12 @@ fun AdbActivationScreen(onBack: () -> Unit = { }) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Activation",
+                text = stringResource(R.string.activation),
                 style = MaterialTheme.typography.pageTitle,
                 modifier = Modifier.padding(top = 16.dp)
             )
 
-            Text("Paste the following command into your terminal:")
+            Text(stringResource(R.string.paste_the_following_command_into_your_terminal))
 
             Card(
                 shape = RoundedCornerShape(12.dp),

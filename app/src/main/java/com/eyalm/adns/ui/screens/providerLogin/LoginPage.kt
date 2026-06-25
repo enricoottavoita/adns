@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.providerLogin
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -66,7 +69,7 @@ fun Login(provider: DnsProvider,
         bottomBarContent = {
             StandardBottomBar(
                 message = "",
-                buttonText = "Next",
+                buttonText = stringResource(R.string.next),
                 enabled = if (isApiKeyMode) apiKey.isNotBlank() else email.isNotBlank() && password.isNotBlank(),
                 onNextClick = {
                     if (isApiKeyMode) {
@@ -87,13 +90,13 @@ fun Login(provider: DnsProvider,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Login",
+                    text = stringResource(R.string.login),
                     style = MaterialTheme.typography.pageTitle,
                     modifier = Modifier.padding(top = 16.dp)
                 )
 
                 if (!isApiKeyMode) {
-                    Text("ADNS uses your credentials only to automatically create your NextDNS API key, which is then stored in an encrypted format. Your email and password themselves are never saved.",
+                    Text(stringResource(R.string.adns_uses_your_credentials_only_to_automatically_create_your_nextdns_api_key_which_is_then_stored),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         lineHeight = 20.sp)
@@ -101,7 +104,7 @@ fun Login(provider: DnsProvider,
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("Email") },
+                        label = { Text(stringResource(R.string.email)) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Email,
@@ -121,7 +124,7 @@ fun Login(provider: DnsProvider,
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("Password") },
+                        label = { Text(stringResource(R.string.password)) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Lock,
@@ -131,7 +134,7 @@ fun Login(provider: DnsProvider,
                         },
                         trailingIcon = {
                             val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                            val description = if (passwordVisible) "Hide password" else "Show password"
+                            val description = if (passwordVisible) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
 
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
@@ -162,7 +165,7 @@ fun Login(provider: DnsProvider,
                         OutlinedTextField(
                             value = code ?: "",
                             onValueChange = { code = it },
-                            label = { Text("2FA Code") },
+                            label = { Text(stringResource(R.string.s_2fa_code)) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Shield,
@@ -186,14 +189,14 @@ fun Login(provider: DnsProvider,
                     TextButton(
                         onClick = { isApiKeyMode = true },
                     ) {
-                        Text("Log in with an API key instead...", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.log_in_with_an_api_key_instead), fontWeight = FontWeight.Bold)
                     }
                 } else {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "ADNS uses your NextDNS API key to fetch and configure your profiles. Your API key is stored securely in an encrypted format on your device.",
+                            text = stringResource(R.string.adns_uses_your_nextdns_api_key_to_fetch_and_configure_your_profiles_your_api_key_is_stored_securel),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
                             lineHeight = 20.sp
@@ -202,12 +205,12 @@ fun Login(provider: DnsProvider,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "You can create one at the NextDNS website: ",
+                                text = stringResource(R.string.you_can_create_one_at_the_nextdns_website),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 12.sp
                             )
                             Text(
-                                text = "my.nextdns.io/account",
+                                text = stringResource(R.string.mynextdnsioaccount),
                                 color = MaterialTheme.colorScheme.primary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
@@ -222,7 +225,7 @@ fun Login(provider: DnsProvider,
                     OutlinedTextField(
                         value = apiKey,
                         onValueChange = { apiKey = it },
-                        label = { Text("API Key") },
+                        label = { Text(stringResource(R.string.api_key)) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.VpnKey,
@@ -249,7 +252,7 @@ fun Login(provider: DnsProvider,
                     TextButton(
                         onClick = { isApiKeyMode = false },
                     ) {
-                        Text("Log in with credentials instead...", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.log_in_with_credentials_instead), fontWeight = FontWeight.Bold)
                     }
                 }
             }

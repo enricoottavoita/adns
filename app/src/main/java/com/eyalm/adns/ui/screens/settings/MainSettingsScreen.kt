@@ -1,4 +1,6 @@
 package com.eyalm.adns.ui.screens.settings
+import androidx.compose.ui.res.stringResource
+
 
 import android.Manifest
 import android.content.ActivityNotFoundException
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SettingsSuggest
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +38,17 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import android.app.Activity
+import com.eyalm.adns.data.LocaleHelper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -75,6 +89,8 @@ fun MainSettingsScreen(
     val provider by viewModel.selectedProvider.collectAsState()
     val context = LocalContext.current
 
+
+
     val onAccountSettingsClick = remember(onPageChange) { { onPageChange(Page.ACCOUNT_SETTINGS) } }
     val onBlocklistsClick = remember(onPageChange) { { onPageChange(Page.BLOCKLISTS) } }
     val onProvidersClick = remember(onPageChange) { { onPageChange(Page.PROVIDERS) } }
@@ -91,6 +107,7 @@ fun MainSettingsScreen(
             }
         }
     }
+    val onLanguagePageClick = remember(onPageChange) { { onPageChange(Page.LANGUAGE) } }
 
 
         LazyColumn(
@@ -102,7 +119,7 @@ fun MainSettingsScreen(
             val isNextDns = provider == DnsProviders.NEXTDNS
             item {
                 Text(
-                    text = "Settings",
+                    text = stringResource(R.string.settings),
                     style = MaterialTheme.typography.pageTitle,
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 144.dp, bottom = 8.dp),
@@ -115,15 +132,15 @@ fun MainSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "PROVIDER SETTINGS",
+                        text = stringResource(R.string.provider_settings),
                         style = MaterialTheme.typography.settingsLabel,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
                     )
                     ExpressiveListItem(
                         onClick = onProvidersClick,
-                        title = "Change Provider",
-                        description = "Change the provider to use",
+                        title = stringResource(R.string.change_provider),
+                        description = stringResource(R.string.change_the_provider_to_use),
                         icon = Icons.Filled.BroadcastOnPersonal,
                         secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         isFirst = true,
@@ -134,9 +151,9 @@ fun MainSettingsScreen(
                             onClick = onAccountSettingsClick,
                             icon = Icons.Filled.AccountCircle,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            title = "${provider.name} Settings",
-                            description = "Change account settings for ${provider.name}",
-                            isLast = true,
+                             title = stringResource(R.string.settings_1, stringResource(provider.nameRes)),
+                             description = stringResource(R.string.change_account_settings_for, stringResource(provider.nameRes)),
+                             isLast = true,
                         )
                         /*
                         ExpressiveListItem(
@@ -160,50 +177,50 @@ fun MainSettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "NEXTDNS PROFILE SETTINGS",
+                            text = stringResource(R.string.nextdns_profile_settings),
                             style = MaterialTheme.typography.settingsLabel,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
                         )
                         ExpressiveListItem(
-                            title = "Security",
-                            description = "Threat protection, DNS rebinding, TLDs",
+                            title = stringResource(R.string.security),
+                            description = stringResource(R.string.threat_protection_dns_rebinding_tlds),
                             onClick = onSecurityClick,
                             icon = Icons.Filled.Security,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             isFirst = true
                         )
                         ExpressiveListItem(
-                            title = "Privacy",
-                            description = "Blocklists, trackers, affiliate links",
+                            title = stringResource(R.string.privacy),
+                            description = stringResource(R.string.blocklists_trackers_affiliate_links),
                             onClick = onPrivacyClick,
                             icon = Icons.Filled.PrivacyTip,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         )
                         ExpressiveListItem(
-                            title = "Parental Control",
-                            description = "SafeSearch, blocked apps, categories",
+                            title = stringResource(R.string.parental_control),
+                            description = stringResource(R.string.safesearch_blocked_apps_categories),
                             onClick = onParentalControlClick,
                             icon = Icons.Filled.FamilyRestroom,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         )
                         ExpressiveListItem(
-                            title = "Allowlist",
-                            description = "Add specific domains to the Allowlist.",
+                            title = stringResource(R.string.allowlist),
+                            description = stringResource(R.string.add_specific_domains_to_the_allowlist),
                             onClick = onAllowlistClick,
                             icon = Icons.Filled.Check,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         )
                         ExpressiveListItem(
-                            title = "Denylist",
-                            description = "Add specific domains to the denylist.",
+                            title = stringResource(R.string.denylist),
+                            description = stringResource(R.string.add_specific_domains_to_the_denylist),
                             onClick = onDenylistClick,
                             icon = Icons.Filled.Block,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         )
                         ExpressiveListItem(
-                            title = "General Profile Settings",
-                            description = "Logs, performance, block page",
+                            title = stringResource(R.string.general_profile_settings),
+                            description = stringResource(R.string.logs_performance_block_page),
                             onClick = onSettingsPageClick,
                             icon = Icons.Filled.Tune,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -219,24 +236,31 @@ fun MainSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "APP SETTINGS",
+                        text = stringResource(R.string.app_settings),
                         style = MaterialTheme.typography.settingsLabel,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
                     )
                     ExpressiveListItem(
                         onClick = onNotificationsClick,
-                        title = "State Notifications",
-                        description = "Enable or disable blocker state notifications",
+                        title = stringResource(R.string.state_notifications),
+                        description = stringResource(R.string.enable_or_disable_blocker_state_notifications),
                         icon = Icons.Filled.Notifications,
                         secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         isFirst = true
                     )
                     ExpressiveListItem(
                         onClick = onAddQuickTile,
-                        title = "Add the quick settings tile",
-                        description = "Add the quick settings tile to your device",
+                        title = stringResource(R.string.add_the_quick_settings_tile),
+                        description = stringResource(R.string.add_the_quick_settings_tile_to_your_device),
                         icon = Icons.Filled.SettingsSuggest,
+                        secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight
+                    )
+                    ExpressiveListItem(
+                        onClick = onLanguagePageClick,
+                        title = stringResource(R.string.language),
+                        description = stringResource(R.string.language_description),
+                        icon = Icons.Filled.Language,
                         secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         isLast = true
                     )
@@ -282,7 +306,7 @@ fun MainSettingsScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Version ${BuildConfig.VERSION_NAME}\nCreated by Eyal Meirom",
+                            text = stringResource(R.string.version_ncreated_by_eyal_meirom, BuildConfig.VERSION_NAME),
                             modifier = Modifier.align(Alignment.CenterHorizontally),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodyMedium,

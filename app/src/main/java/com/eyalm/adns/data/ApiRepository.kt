@@ -1,4 +1,6 @@
 package com.eyalm.adns.data
+import com.eyalm.adns.R
+
 
 import android.R.attr.name
 import android.content.Context
@@ -77,14 +79,14 @@ class ApiRepository(private val context: Context) {
             if (nextDnsResponse?.requiresCode == true) {
                 LoginResult.RequiresTwoFactor
             } else {
-                val errorMessage = if (responseText.isNotEmpty()) responseText else "Login Failed: ${response.code()}"
+                val errorMessage = if (responseText.isNotEmpty()) responseText else context.getString(R.string.login_failed, response.code())
                 e("ApiRepository", "Login Failed: $errorMessage")
                 LoginResult.Error(errorMessage)
             }
 
         } catch (e: Exception) {
             e("ApiRepository", "Network Error during login", e)
-            LoginResult.Error(e.message ?: "Unknown error")
+            LoginResult.Error(e.message ?: context.getString(R.string.unknown_error))
         }
     }
 
@@ -93,7 +95,7 @@ class ApiRepository(private val context: Context) {
         keyManager.saveApiKey(key)
         try {
             ApiClient.nextDnsApi.getProfiles()
-            keyManager.saveEmail("API Key Account")
+            keyManager.saveEmail(context.getString(R.string.api_key_account))
             LoginResult.Success
         } catch (e: Exception) {
             if (previousKey != null) {

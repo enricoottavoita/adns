@@ -24,6 +24,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,12 +53,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.edit
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.DnsRepository
+import com.eyalm.adns.data.LocaleHelper
 import com.eyalm.adns.data.Locales
 import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.data.models.DnsProviders
@@ -74,6 +78,11 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private var lastAppliedLang: String? = null
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.onAttach(newBase))
+    }
 
     private fun handleShortcutIntent(intent: Intent?) {
         if (intent?.action == "com.eyalm.adns.TOGGLE_ACTION") {
@@ -88,6 +97,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        val savedLang = LocaleHelper.getLanguage(this)
+        if (lastAppliedLang != null && lastAppliedLang != savedLang) {
+            recreate()
+            return
+        }
         lifecycleScope.launch {
             settingsViewModel.refreshProvider()
             if (settingsViewModel.selectedProvider.value is DnsProvider.Enhanced) {
@@ -101,6 +115,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        LocaleHelper.applyLocale(this)
+        lastAppliedLang = LocaleHelper.getLanguage(this)
         val context = applicationContext
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -116,7 +132,7 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             // migrate from 1.0.3
-            val sharedPreferences = getSharedPreferences("adns_settings", Context.MODE_PRIVATE)
+            val sharedPreferences = getSharedPreferences("adns_settings", MODE_PRIVATE)
             val oldHostname = sharedPreferences.getString("custom_url", null)
             oldHostname?.let {
                 val provider = DnsProviders.getProviderByHostname(oldHostname)
@@ -185,7 +201,10 @@ fun Greeting(
 ) {
 
     var selectedItem by remember { mutableIntStateOf(0) }
-    val items = remember { listOf("Home", "Stats", "Settings") }
+    val homeTab = stringResource(R.string.home)
+    val statsTab = stringResource(R.string.stats)
+    val settingsTab = stringResource(R.string.settings)
+    val items = remember(homeTab, statsTab, settingsTab) { listOf(homeTab, statsTab, settingsTab) }
     val selectedIcons = remember { listOf(Icons.Filled.Home, Icons.Filled.Insights, Icons.Filled.Settings) }
     val unselectedIcons = remember {
         listOf(Icons.Outlined.Home, Icons.Outlined.Insights, Icons.Outlined.Settings)
@@ -202,6 +221,7 @@ fun Greeting(
     val latestVersion = remember { mutableStateOf<String?>(null) }
 
     val settingsViewModel: SettingsViewModel = viewModel()
+    val selectedProvider by settingsViewModel.selectedProvider.collectAsState()
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -248,12 +268,12 @@ fun Greeting(
         bottomBar = {
             AnimatedVisibility(
                 visible = !(settingsPage != SettingsViewModel.Page.MAIN && selectedItem == 2),
-                enter = androidx.compose.animation.slideInVertically { it } + fadeIn(),
-                exit = androidx.compose.animation.slideOutVertically { it } + fadeOut()
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut()
             ) {
                 NavigationBar {
                     items.forEachIndexed { index, item ->
-                        if ((index == 1 && settingsViewModel.selectedProvider.collectAsState().value is DnsProvider.Enhanced) || index != 1)
+                        if ((index == 1 && selectedProvider is DnsProvider.Enhanced) || index != 1)
                         NavigationBarItem(
                             icon = {
                                 Icon(

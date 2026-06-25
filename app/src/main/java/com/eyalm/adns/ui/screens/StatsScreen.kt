@@ -1,4 +1,8 @@
 package com.eyalm.adns.ui.screens
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+
 
 import android.icu.text.NumberFormat
 import androidx.compose.foundation.Canvas
@@ -85,13 +89,14 @@ fun StatsScreen(
     modifier: Modifier = Modifier,
     statsViewModel: StatsViewModel = viewModel(),
 ) {
-    val filterOptions = remember { listOf("24 hours", "7 days", "30 days") }
+    val context = LocalContext.current
+    val filterOptions = remember(context) { listOf(context.getString(R.string.s_24_hours), context.getString(R.string.s_7_days), context.getString(R.string.s_30_days)) }
 
-    val filterMap = remember {
+    val filterMap = remember(context) {
         mapOf(
-            "24 hours" to "-24h",
-            "7 days" to "-7d",
-            "30 days" to "-30d"
+            context.getString(R.string.s_24_hours) to "-24h",
+            context.getString(R.string.s_7_days) to "-7d",
+            context.getString(R.string.s_30_days) to "-30d"
         )
     }
     val reverseFilterMap = remember(filterMap) {
@@ -192,12 +197,12 @@ fun StatsScreen(
                     item {
                         TotalQueriesCard(
                             totalCount = formatInteger(totalQueriesSum),
-                            blockedCount = "${formatInteger(blockedQueriesSum)} ($blockedPercent%) blocked",
+                            blockedCount = stringResource(R.string.blocked, formatInteger(blockedQueriesSum), blockedPercent),
                             totalQueriesPoints = totalPoints,
                             blockedQueriesPoints = blockedPoints,
                             maxQueries = maxQueries,
                             filterOptions = filterOptions,
-                            selectedFilter = reverseFilterMap[currentFilter] ?: "30 days",
+                            selectedFilter = reverseFilterMap[currentFilter] ?: stringResource(R.string.s_30_days),
                             onFilterSelected = { filter ->
                                 statsViewModel.getPeriod(filterMap[filter] ?: "-30d")
                             },
@@ -244,7 +249,7 @@ fun TotalQueriesCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "TOTAL QUERIES",
+                        text = stringResource(R.string.total_queries),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
                         fontWeight = FontWeight.Bold,
@@ -337,7 +342,7 @@ fun BlockedQueriesCard(
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
 
             Text(
-                text = "Blocked queries",
+                text = stringResource(R.string.blocked_queries),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -349,7 +354,7 @@ fun BlockedQueriesCard(
 
             if (domains.isEmpty()) {
                 Text(
-                    text = "No blocked queries in this period",
+                    text = stringResource(R.string.no_blocked_queries_in_this_period),
                     modifier = Modifier.padding(32.dp).align(Alignment.CenterHorizontally),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -391,7 +396,7 @@ fun BlockedQueryRow(item: NextDnsDomainData) {
         Column(modifier = Modifier.weight(1f)) {
             HighlightedDomainText(domain = item.domain)
             Text(
-                text = "${formatInteger(item.queries)} queries",
+                text = stringResource(R.string.queries, formatInteger(item.queries)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -34,7 +34,7 @@ fun ExpressiveListItem(
     secondIcon: ImageVector? = null,
     interactiveItem: (@Composable (isSelected: Boolean, onClick: () -> Unit) -> Unit)? = null,
     title: String,
-    description: String?,
+    description: String? = null,
     isFirst: Boolean = false,
     isLast: Boolean = false,
 ) {

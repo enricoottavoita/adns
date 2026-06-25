@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.components
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -81,7 +84,7 @@ fun ProfilesList(
             ),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Create New Profile", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.create_new_profile), fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(16.dp))

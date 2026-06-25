@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.onboarding
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,8 +29,8 @@ fun SuccessScreen(
         bottomBarContent = {
             StandardBottomBar(
                 onNextClick = onFinishClicked,
-                buttonText = "Finish",
-                message = "You're almost there!"
+                buttonText = stringResource(R.string.finish),
+                message = stringResource(R.string.youre_almost_there)
             )
         },
         content = { paddingValues ->
@@ -39,13 +42,13 @@ fun SuccessScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Congratulations!",
+                    text = stringResource(R.string.congratulations),
                     style = MaterialTheme.typography.pageTitle,
                     modifier = Modifier.padding(top = 16.dp)
                 )
 
                 Text(
-                    text = "Application activated successfully.",
+                    text = stringResource(R.string.application_activated_successfully),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 IconVisual(Icons.Filled.CheckCircle)

@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.onboarding
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
@@ -56,7 +59,7 @@ fun ActivationMethodScreen(
                 )
             } **/
             StandardBottomBar(
-                message = "Please choose one option.",
+                message = stringResource(R.string.please_choose_one_option),
                 enabled = shizukuPressed || adbPressed,
                 onNextClick = { onNextClick(shizukuPressed, adbPressed) }
             )
@@ -72,7 +75,7 @@ fun ActivationMethodScreen(
         ) {
             item {
                 Text(
-                    text = "Activation",
+                    text = stringResource(R.string.activation),
                     style = MaterialTheme.typography.pageTitle,
                     modifier = Modifier.padding(top = 16.dp)
                 )
@@ -80,7 +83,7 @@ fun ActivationMethodScreen(
             }
             item {
                 Text(
-                    text = "Please choose an activation method.\nThe activation is a one-time process. After the activation, you’ll be able to use the app flawlessly.",
+                    text = stringResource(R.string.please_choose_an_activation_method_the_activation_is_a_onetime_process_after_the_activation_yo),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -88,8 +91,8 @@ fun ActivationMethodScreen(
 
             item {
                 SelectableCard(
-                    title = "Shizuku",
-                    description = "Requires Shizuku or Sui installed and set up.",
+                    title = stringResource(R.string.shizuku),
+                    description = stringResource(R.string.requires_shizuku_or_sui_installed_and_set_up),
                     selected = shizukuPressed,
                     onClick = {
                         shizukuPressed = !shizukuPressed
@@ -99,8 +102,8 @@ fun ActivationMethodScreen(
             }
             item {
                 SelectableCard(
-                    title = "ADB Shell",
-                    description = "Requires ADB shell access. For advanced users.",
+                    title = stringResource(R.string.adb_shell),
+                    description = stringResource(R.string.requires_adb_shell_access_for_advanced_users),
                     selected = adbPressed,
                     onClick = {
                         adbPressed = !adbPressed

@@ -32,8 +32,24 @@ import com.eyalm.adns.viewmodel.OnboardingViewModel
 class OnboardingActivity : ComponentActivity() {
     enum class Step { INTRO , ACTIVATION_METHOD, ADB, SHIZUKU, SUCCESS }
 
+    private var lastAppliedLang: String? = null
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(com.eyalm.adns.data.LocaleHelper.onAttach(newBase))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val savedLang = com.eyalm.adns.data.LocaleHelper.getLanguage(this)
+        if (lastAppliedLang != null && lastAppliedLang != savedLang) {
+            recreate()
+        }
+    }
+
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        com.eyalm.adns.data.LocaleHelper.applyLocale(this)
+        lastAppliedLang = com.eyalm.adns.data.LocaleHelper.getLanguage(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {

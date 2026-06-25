@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import android.content.Intent
 import android.util.Log
@@ -59,7 +62,7 @@ fun HomeScreen(
                 .padding(horizontal = 48.dp)
         ) {
             Text(
-                text = if (isEnabled) "Goooodbye,\nAds!" else "Blocker\nDisabled",
+                text = if (isEnabled) stringResource(R.string.goooodbyenads) else stringResource(R.string.blockerndisabled),
                 style = MaterialTheme.typography.pageTitle,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 48.sp,
@@ -77,9 +80,9 @@ fun HomeScreen(
                     verticalAlignment = Alignment.Top
                 ) {
                     Column {
-                        Text(text = "Private DNS")
+                        Text(text = stringResource(R.string.private_dns))
                         Text(
-                            text = if (isEnabled) "Running" else "Not running",
+                            text = if (isEnabled) stringResource(R.string.running) else stringResource(R.string.not_running),
                             color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
                     }
@@ -97,7 +100,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.Top
                 ) {
                     Column {
-                        Text(text = "Server")
+                        Text(text = stringResource(R.string.server))
                         Text(text = server)
                     }
                     IconButton(
@@ -111,7 +114,7 @@ fun HomeScreen(
                 Column(
                     modifier = Modifier.alpha(if (isEnabled) 1f else 0f)
                 ) {
-                    Text(text = "Uptime")
+                    Text(text = stringResource(R.string.uptime))
                     Text(text = runningTime)
                 }
             }
@@ -138,10 +141,10 @@ fun UpdateDialog(
             Icon(imageVector = Icons.Filled.Update, contentDescription = "Update Icon")
         },
         title = {
-            Text(text = "New Update")
+            Text(text = stringResource(R.string.new_update))
         },
         text = {
-            Text(text = "Version v$version is available.\nWould you like to download it?")
+            Text(text = stringResource(R.string.version_v_is_available_would_you_like_to_download_it, version))
         },
         onDismissRequest = {
             onClose()
@@ -159,7 +162,7 @@ fun UpdateDialog(
                     onClose()
                 }
             ) {
-                Text("Download")
+                Text(stringResource(R.string.download))
             }
         },
         dismissButton = {
@@ -168,7 +171,7 @@ fun UpdateDialog(
                     onClose()
                 }
             ) {
-                Text("Dismiss")
+                Text(stringResource(R.string.dismiss))
             }
         }
     )

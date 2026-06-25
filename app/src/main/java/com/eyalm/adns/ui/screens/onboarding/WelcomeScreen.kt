@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.onboarding
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,7 +28,7 @@ fun WelcomeScreen(
     OnboardingTemplate(
         bottomBarContent = {
             StandardBottomBar(
-                message = "Let’s set up blocking for your browser and apps.",
+                message = stringResource(R.string.lets_set_up_blocking_for_your_browser_and_apps),
                 onNextClick = onNextClick
             )
         },
@@ -38,13 +41,13 @@ fun WelcomeScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Welcome to ADNS",
+                    text = stringResource(R.string.welcome_to_adns),
                     style = MaterialTheme.typography.pageTitle,
                     modifier = Modifier.padding(top = 16.dp)
                 )
 
                 Text(
-                    text = "A DNS-based ad blocker for Android",
+                    text = stringResource(R.string.a_dnsbased_ad_blocker_for_android),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 IconVisual(Icons.Default.Shield)

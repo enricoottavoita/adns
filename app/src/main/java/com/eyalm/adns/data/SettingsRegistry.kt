@@ -1,4 +1,7 @@
 package com.eyalm.adns.data
+import com.eyalm.adns.R
+import android.content.Context
+
 
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.google.gson.JsonObject
@@ -7,8 +10,8 @@ data class ToggleSetting(
     val apiPath: List<String>,
     val localeKey: String,
     val category: String,
-    val customTitle: String? = null,
-    val customDescription: String? = null
+    val customTitleRes: Int? = null,
+    val customDescriptionRes: Int? = null
 ) {
     // for simple (non-nested) toggles
 
@@ -24,11 +27,11 @@ data class ToggleSetting(
 
     val stateKey: String get() = apiPath.joinToString(".")
 
-    fun title(): String =
-        customTitle ?: Locales.getString(category, localeKey, "name")
+    fun title(context: Context): String =
+        customTitleRes?.let { context.getString(it) } ?: Locales.getString(category, localeKey, "name")
 
-    fun description(): String =
-        customDescription ?: Locales.getString(category, localeKey, "description")
+    fun description(context: Context): String =
+        customDescriptionRes?.let { context.getString(it) } ?: Locales.getString(category, localeKey, "description")
 
 
 
@@ -83,14 +86,15 @@ data class ListSetting(
     val source: ListSource,      // Where available items come from
     val localePath: List<String>, // Path in merged.json for locale-sourced lists
     val parentPage: Page? = null,       // Which page to go back to
-    val customTitle: String? = null,
+    val customTitleRes: Int? = null,
+    val customDescriptionRes: Int? = null,
     val customDescription: String? = null,
     val allowsCustomInput: Boolean = false
 ) {
     enum class Page { SECURITY, PRIVACY, PARENTAL_CONTROL }
 
-    fun title(): String = customTitle ?: Locales.getString(localeCategory, localeKey, "name")
-    fun description(): String = customDescription ?: Locales.getString(localeCategory, localeKey, "description")
+    fun title(context: Context): String = customTitleRes?.let { context.getString(it) } ?: Locales.getString(localeCategory, localeKey, "name")
+    fun description(context: Context): String = customDescriptionRes?.let { context.getString(it) } ?: customDescription ?: Locales.getString(localeCategory, localeKey, "description")
 
 }
 
@@ -185,14 +189,14 @@ object SettingsPageSettings {
         ToggleSetting(
             apiPath = listOf("bav"),
             localeKey = "bav", category = "settings",
-            customTitle = "Bypass Age Verification",
-            customDescription = "Automatically bypass age verification checks used by certain websites, such as adult content sites, to verify a visitor’s age before allowing access."
+            customTitleRes = R.string.bypass_age_verification,
+            customDescriptionRes = R.string.automatically_bypass_age_verification_checks_used_by_certain_websites_such_as_adult_content_sites
         ),
         ToggleSetting(
             apiPath = listOf("web3"),
             localeKey = "web3", category = "settings",
-            customTitle = "Web3",
-            customDescription = "Enable Web3 domain resolution."
+            customTitleRes = R.string.web3,
+            customDescriptionRes = R.string.enable_web3_domain_resolution
         ),
 
         // toggles under "logs"
@@ -200,48 +204,48 @@ object SettingsPageSettings {
         ToggleSetting(
             apiPath = listOf("logs", "enabled"),
             localeKey = "logs", category = "settings",
-            customTitle = "Logs",
-            customDescription = "Enable or disable query logging."
+            customTitleRes = R.string.logs,
+            customDescriptionRes = R.string.enable_or_disable_query_logging
         ),
         ToggleSetting(
             apiPath = listOf("logs", "drop", "ip"),
             localeKey = "logs", category = "settings",
-            customTitle = "Drop IP from Logs",
-            customDescription = "Strip client IP addresses from all log entries."
+            customTitleRes = R.string.drop_ip_from_logs,
+            customDescriptionRes = R.string.strip_client_ip_addresses_from_all_log_entries
         ),
         ToggleSetting(
             apiPath = listOf("logs", "drop", "domain"),
             localeKey = "logs", category = "settings",
-            customTitle = "Drop Domains from Logs",
-            customDescription = "Strip domain names from all log entries."
+            customTitleRes = R.string.drop_domains_from_logs,
+            customDescriptionRes = R.string.strip_domain_names_from_all_log_entries
         ),
 
         // toggles under "blockPage"
         ToggleSetting(
             apiPath = listOf("blockPage", "enabled"),
             localeKey = "blockPage", category = "settings",
-            customTitle = "Block Page",
-            customDescription = "Show a block page when a domain is blocked."
+            customTitleRes = R.string.block_page,
+            customDescriptionRes = R.string.show_a_block_page_when_a_domain_is_blocked
         ),
 
         // toggles under "performance"
         ToggleSetting(
             apiPath = listOf("performance", "ecs"),
             localeKey = "performance", category = "settings",
-            customTitle = "EDNS Client Subnet",
-            customDescription = "Helps CDNs locate you more accurately for faster content delivery."
+            customTitleRes = R.string.edns_client_subnet,
+            customDescriptionRes = R.string.helps_cdns_locate_you_more_accurately_for_faster_content_delivery
         ),
         ToggleSetting(
             apiPath = listOf("performance", "cacheBoost"),
             localeKey = "performance", category = "settings",
-            customTitle = "Cache Boost",
-            customDescription = "Boost DNS performance by increasing cache TTLs."
+            customTitleRes = R.string.cache_boost,
+            customDescriptionRes = R.string.boost_dns_performance_by_increasing_cache_ttls
         ),
         ToggleSetting(
             apiPath = listOf("performance", "cnameFlattening"),
             localeKey = "performance", category = "settings",
-            customTitle = "CNAME Flattening",
-            customDescription = "Resolve CNAMEs to their final target for enhanced security."
+            customTitleRes = R.string.cname_flattening,
+            customDescriptionRes = R.string.resolve_cnames_to_their_final_target_for_enhanced_security
         ),
     )
 
@@ -258,7 +262,7 @@ object DenyList {
             localeKey = "denylist",
             source = ListSource.SERVER,
             localePath = emptyList(),
-            customTitle = "Denylist",
+            customTitleRes = R.string.denylist,
             customDescription = Locales.getString("xlist", "denylist", "info"),
             allowsCustomInput = true
         )
@@ -273,7 +277,7 @@ object Allowlist {
             apiFeat = "",
             localeCategory = "pages",
             localeKey = "allowlist",
-            customTitle = "Allowlist",
+            customTitleRes = R.string.allowlist,
             customDescription = Locales.getString("xlist", "allowlist", "info"),
             source = ListSource.SERVER,
             localePath = emptyList(),

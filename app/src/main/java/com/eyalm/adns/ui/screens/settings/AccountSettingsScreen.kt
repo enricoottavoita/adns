@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.settings
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
@@ -117,7 +120,7 @@ fun AccountSettingsScreen(
         ) {
             item {
                 Text(
-                    text = "${provider.name} Settings",
+                    text = stringResource(R.string.settings_1, stringResource(provider.nameRes)),
                     style = MaterialTheme.typography.pageTitle,
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 40.dp),
@@ -137,14 +140,14 @@ fun AccountSettingsScreen(
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
-                                text = "LOGGED IN AS",
+                                text = stringResource(R.string.logged_in_as),
                                 style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.2.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = email ?: "Loading...",
+                                text = email ?: stringResource(R.string.loading),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -157,7 +160,7 @@ fun AccountSettingsScreen(
                                     .height(64.dp),
                                 value = deviceName,
                                 onValueChange = { deviceName = it },
-                                label = { Text("Device Name (for Logs)") },
+                                label = { Text(stringResource(R.string.device_name_for_logs)) },
                                 isError = !isDeviceNameValid,
                                 trailingIcon = {
                                     IconButton(
@@ -170,14 +173,14 @@ fun AccountSettingsScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Done,
-                                            contentDescription = "Save Device Name",
+                                            contentDescription = stringResource(R.string.save_device_name),
                                             tint = if (isDeviceNameValid && deviceName != viewModel.nextDnsDeviceName)
                                                 MaterialTheme.colorScheme.primary
                                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                                         )
                                     }
                                 },
-                                placeholder = { Text("Device Name is not set") },
+                                placeholder = { Text(stringResource(R.string.device_name_is_not_set)) },
                                 shape = RoundedCornerShape(12.dp),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(
@@ -199,7 +202,7 @@ fun AccountSettingsScreen(
                                 ),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Logout", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.logout), fontWeight = FontWeight.Bold)
                             }
                         }
                     }

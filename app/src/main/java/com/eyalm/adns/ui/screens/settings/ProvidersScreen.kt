@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.settings
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import android.util.Patterns
 import androidx.compose.foundation.layout.Arrangement
@@ -124,21 +127,21 @@ fun ProvidersScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             item { Text(
-                text = "Providers",
+                text = stringResource(R.string.providers),
                 style = MaterialTheme.typography.pageTitle,
                 modifier = Modifier.padding(top = 24.dp),
             ) }
 
             item {
-                Text(text = "Select your preferred DNS provider", modifier = Modifier.padding(vertical = 8.dp))
+                Text(text = stringResource(R.string.select_your_preferred_dns_provider), modifier = Modifier.padding(vertical = 8.dp))
             }
 
 
             DnsProviders.getAllProviders.forEach { provider ->
                 item {
                     ExpressiveListItem(
-                        title = provider.name + if (provider.name == "NextDNS") " (Recommended)" else "",
-                        description = provider.description,
+                        title = stringResource(provider.nameRes) + if (provider.id == "nextdns") stringResource(R.string.recommended) else "",
+                        description = stringResource(provider.descriptionRes),
                         isSelected = provider.id == currentProvider.id && !isCustomSelected,
                         onClick = {
                             if (!provider.isEnhanced) {
@@ -190,7 +193,7 @@ fun ProvidersScreen(
                                         // isAdGuard.value = false
                                     },
                                     isError = !isCustomValid && customUrlText.value != "", // !isAdGuard.value && !isCustomValid,
-                                    placeholder = { Text("Enter a hostname...") },
+                                    placeholder = { Text(stringResource(R.string.enter_a_hostname)) },
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 Button(
@@ -210,7 +213,7 @@ fun ProvidersScreen(
                                     ),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text("Confirm", fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.confirm), fontWeight = FontWeight.Bold)
                                 }
 
                             }
@@ -225,8 +228,8 @@ fun ProvidersScreen(
                     altLeadingContent = {
                         RadioButton(provider.id == "custom" || isCustomSelected, {isCustomSelected = true})
                     },
-                    title = "Custom Hostname (advanced)",
-                    description = "Use a custom hostname for the DNS server",
+                    title = stringResource(R.string.custom_hostname_advanced),
+                    description = stringResource(R.string.use_a_custom_hostname_for_the_dns_server),
                     isLast = true,
                 )
             }

@@ -58,6 +58,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         SETTINGS_PAGE,
         GENERIC_LIST,
         BLOCKLISTS,
+        LANGUAGE
     }
 
     private val repository = DnsRepository(application)
@@ -83,7 +84,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     getApplication(),
                     com.eyalm.adns.services.AdnsTileService::class.java
                 ),
-                "ADNS AdBlock",
+                getApplication<Application>().getString(R.string.adns_adblock),
                 android.graphics.drawable.Icon.createWithResource(
                     getApplication(),
                     R.drawable.ic_launcher_foreground
@@ -91,8 +92,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 getApplication<Application>().mainExecutor
             ) { result ->
                 val message = when (result) {
-                    1 -> "Tile already added!"
-                    2 -> "Tile added!"
+                    1 -> getApplication<Application>().getString(R.string.tile_already_added)
+                    2 -> getApplication<Application>().getString(R.string.tile_added)
                     else -> ""
                 }
                 if (message.isNotEmpty())
@@ -101,7 +102,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         } else {
             Toast.makeText(
                 getApplication(),
-                "Feature not supported on this version",
+                getApplication<Application>().getString(R.string.feature_not_supported_on_this_version),
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -176,7 +177,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateDeviceName(name: String) {
         apiRepository.setNextDnsDeviceName(name)
         nextDnsDeviceName = apiRepository.getNextDnsDeviceName()
-        Toast.makeText(getApplication(), "Done!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(getApplication(), getApplication<Application>().getString(R.string.done), Toast.LENGTH_SHORT).show()
     }
 
     fun createProfile(name: String) {
@@ -244,7 +245,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 _pageToggles.value = states
                 _loadedPageId.value = page
             } else {
-                _errorMessage.emit("Failed to load page data. Check your network connection and try again later.")
+                _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_page_data_check_your_network_connection_and_try_again_later))
             }
             _isLoading.value = false
         }
@@ -262,7 +263,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 _pageToggles.value = _pageToggles.value.toMutableMap().apply {
                     this[toggle.stateKey] = !newValue
                 }
-                _errorMessage.emit("Network error. Please try again.")
+                _errorMessage.emit(getApplication<Application>().getString(R.string.network_error_please_try_again))
             }
         }
     }
@@ -321,13 +322,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     }
                     _availableItems.value = items
                     if (items.isEmpty()) {
-                        _errorMessage.emit("Failed to load list data.")
+                        _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_list_data))
                     }
                 }
                 _isLoading.value = false
 
             } catch (e: Exception) {
-                _errorMessage.emit("Failed to load list data. Check your network connection and try again later.")
+                _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_list_data_check_your_network_connection_and_try_again_later))
                 _isLoading.value = false
             }
         }
@@ -364,8 +365,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 "blocklists" -> {
                     ListItem(
                         id = id,
-                        name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: "NextDNS Ads & Trackers Blocklist" ,
-                        description = obj.get("description")?.takeIf { !it.isJsonNull }?.asString ?: "A comprehensive blocklist to block ads & trackers in all countries. This is the recommended starter blocklist.",
+                        name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: getApplication<Application>().getString(R.string.nextdns_ads_trackers_blocklist) ,
+                        description = obj.get("description")?.takeIf { !it.isJsonNull }?.asString ?: getApplication<Application>().getString(R.string.a_comprehensive_blocklist_to_block_ads_trackers_in_all_countries_this_is_the_recommended_starter),
                     )
                 }
                 "services" -> {
@@ -469,7 +470,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
             if (!success) {
                 if (isCurrentlyActive) _activeListIds.value += itemId else _activeListIds.value -= itemId
-                _errorMessage.emit("Failed to update $itemId")
+                _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_update, itemId))
             }
         }
     }
@@ -489,7 +490,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             if (!success) {
                 _availableItems.value = _availableItems.value.filter { it.id != cleanDomain }
                 _activeListIds.value -= cleanDomain
-                _errorMessage.emit("Failed to add $cleanDomain")
+                _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_add, cleanDomain))
             }
         }
     }
@@ -508,7 +509,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             if (!success) {
                 _availableItems.value = listOf(ListItem(id = domain, name = domain)) + _availableItems.value
                 if (wasActive) _activeListIds.value += domain
-                _errorMessage.emit("Failed to delete $domain")
+                _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_delete, domain))
             }
         }
     }

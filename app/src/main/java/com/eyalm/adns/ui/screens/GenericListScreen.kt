@@ -1,4 +1,8 @@
 package com.eyalm.adns.ui.screens.settings
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+
 
 import android.util.Patterns
 import androidx.compose.foundation.background
@@ -59,6 +63,7 @@ import com.eyalm.adns.viewmodel.SettingsViewModel
 fun GenericListScreen(onBack: () -> Unit) {
     val viewModel: SettingsViewModel = viewModel()
     val listSetting = viewModel.currentListSetting ?: return
+    val context = LocalContext.current
     val activeIds by viewModel.activeListIds.collectAsState()
     val availableItems by viewModel.availableItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -108,7 +113,7 @@ fun GenericListScreen(onBack: () -> Unit) {
             if (listSetting.allowsCustomInput) {
                 ExtendedFloatingActionButton(
                     icon = { Icon(Icons.Filled.Add, "add") },
-                    text = { Text(text = "Add Item") },
+                    text = { Text(text = stringResource(R.string.add_item)) },
                     onClick = {
                         openAddDialog.value = true
                     }
@@ -149,14 +154,14 @@ fun GenericListScreen(onBack: () -> Unit) {
             ) {
                 item {
                     Text(
-                        text = listSetting.title(),
+                        text = listSetting.title(context),
                         style = MaterialTheme.typography.pageTitle,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
                     )
-                    Text(text = listSetting.description() , fontSize = 16.sp)
+                    Text(text = listSetting.description(context) , fontSize = 16.sp)
                     if (listSetting.allowsCustomInput) {
-                        Text(text = "Hint: To remove items from the list, swipe to the left.", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(text = stringResource(R.string.hint_to_remove_items_from_the_list_swipe_to_the_left), fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -165,7 +170,7 @@ fun GenericListScreen(onBack: () -> Unit) {
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search...") },
+                            placeholder = { Text(stringResource(R.string.search)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp)
@@ -260,14 +265,14 @@ fun AddDialog(
             Icon(imageVector=Icons.Default.Add, contentDescription = "Add")
         },
         title = {
-            Text(text = "Add Item")
+            Text(text = stringResource(R.string.add_item))
         },
         text = {
             Text(text = "")
             OutlinedTextField(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 value = domain,
-                placeholder = { Text("Enter a domain...") },
+                placeholder = { Text(stringResource(R.string.enter_a_domain)) },
                 singleLine = true,
                 onValueChange = {
                     domain = it
@@ -275,7 +280,7 @@ fun AddDialog(
                 isError = !Patterns.DOMAIN_NAME.matcher(domain).matches() && domain != "",
                 supportingText = {
                     if (!Patterns.DOMAIN_NAME.matcher(domain).matches() && domain != "") {
-                        Text("Invalid Domain")
+                        Text(stringResource(R.string.invalid_domain))
                     }
                 },
                 shape = RoundedCornerShape(12.dp)
@@ -292,7 +297,7 @@ fun AddDialog(
                     }
                 }
             ) {
-                Text("Confirm")
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
@@ -301,7 +306,7 @@ fun AddDialog(
                     onDismissRequest()
                 }
             ) {
-                Text("Dismiss")
+                Text(stringResource(R.string.dismiss))
             }
         }
     )

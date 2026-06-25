@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.components
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,7 +26,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun StandardBottomBar(
     message: String,
-    buttonText: String = "Next",
+    buttonText: String = stringResource(R.string.next),
     enabled: Boolean = true,
     onNextClick: () -> Unit
 ) {

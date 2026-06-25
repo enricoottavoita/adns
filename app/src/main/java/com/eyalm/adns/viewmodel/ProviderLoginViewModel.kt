@@ -1,4 +1,6 @@
 package com.eyalm.adns.viewmodel
+import com.eyalm.adns.R
+
 
 import android.app.Application
 import android.util.Log
@@ -59,7 +61,7 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
                 is LoginResult.RequiresTwoFactor -> {
                     showTwoFactorAuth = true
                     currentStep = ProviderLoginActivity.Step.LOGIN
-                    Toast.makeText(getApplication(), "Two-factor authentication required.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(getApplication(), getApplication<Application>().getString(R.string.twofactor_authentication_required), Toast.LENGTH_SHORT).show()
                 }
                 is LoginResult.Error -> {
                     Toast.makeText(getApplication(), result.message, Toast.LENGTH_LONG).show()

@@ -1,4 +1,7 @@
 package com.eyalm.adns.ui.screens.settings
+import com.eyalm.adns.R
+import androidx.compose.ui.res.stringResource
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.ListSetting
 import com.eyalm.adns.data.Locales
@@ -52,6 +56,7 @@ fun GenericCategoryScreen(
 ) {
     val viewModel: SettingsViewModel = viewModel()
     val toggleStates by viewModel.pageToggles.collectAsState()
+    val context = LocalContext.current
     val loadedPageId by viewModel.loadedPageId.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -86,7 +91,9 @@ fun GenericCategoryScreen(
 
         if (!isDataReady) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
                 CircularWavyProgressIndicator(modifier = Modifier.size(64.dp))
@@ -106,8 +113,8 @@ fun GenericCategoryScreen(
             ) {
                 val isSelected = toggleStatesMap[toggle.stateKey] == true
                 ExpressiveListItem(
-                    title = toggle.title(),
-                    description = toggle.description(),
+                    title = toggle.title(context),
+                    description = toggle.description(context),
                     isSelected = isSelected,
                     onClick = {
                         viewModel.updateToggle(apiPage, toggle, !isSelected)
@@ -155,15 +162,15 @@ fun GenericCategoryScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "LISTS",
+                                text = stringResource(R.string.lists),
                                 style = MaterialTheme.typography.settingsLabel,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
                             )
                             lists.forEach { listSetting ->
                                 ExpressiveListItem(
-                                    title = listSetting.title(),
-                                    description = listSetting.description(),
+                                    title = listSetting.title(context),
+                                    description = listSetting.description(context),
                                     onClick = { viewModel.openListScreen(listSetting) },
                                     secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                     isLast = lists.last() == listSetting,
@@ -199,7 +206,7 @@ fun GenericCategoryScreen(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = "OTHER PREFERENCES",
+                                    text = stringResource(R.string.other_preferences),
                                     style = MaterialTheme.typography.settingsLabel,
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
@@ -218,7 +225,7 @@ fun GenericCategoryScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "PREFERENCES",
+                                text = stringResource(R.string.preferences),
                                 style = MaterialTheme.typography.settingsLabel,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
