@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -226,19 +227,11 @@ fun Greeting(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            settingsViewModel.refreshNotification()
+            settingsViewModel.setNotificationsEnabled(true)
             Log.d("Permission", "Permission Granted")
-            val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                putExtra(Settings.EXTRA_CHANNEL_ID, "dns_status_channel")
-            }
-            context.startActivity(intent)
         } else {
-            Log.d("Permission", "Permission Denied")
-            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-            }
-            context.startActivity(intent)
+            settingsViewModel.setNotificationsEnabled(false)
+            Toast.makeText(context, "Notification permission denied.", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -67,6 +67,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _dnsUrl = MutableStateFlow(repository.getDnsUrl())
     val dnsUrl: StateFlow<String?> = _dnsUrl.asStateFlow()
 
+    private val _notificationsEnabled = MutableStateFlow(repository.isNotificationEnabled())
+    val notificationsEnabled = _notificationsEnabled.asStateFlow()
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        repository.setNotificationEnabled(enabled)
+        _notificationsEnabled.value = enabled
+    }
+
     private val _page = MutableStateFlow(Page.MAIN)
     val page = _page.asStateFlow()
 
@@ -110,7 +118,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun refreshNotification() {
         repository.updateNotification()
-
+        _notificationsEnabled.value = repository.isNotificationEnabled()
     }
 
 

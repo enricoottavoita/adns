@@ -1,8 +1,5 @@
 package com.eyalm.adns.data
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -16,13 +13,11 @@ import android.os.Looper
 import android.provider.Settings
 import android.service.quicksettings.TileService
 import android.util.Log
-import androidx.core.app.NotificationCompat
 import com.eyalm.adns.MainActivity
 import com.eyalm.adns.R
 import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.services.AdnsTileService
-import com.eyalm.adns.services.ToggleReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,9 +32,10 @@ class DnsRepository(rawContext: Context) {
     private val resolver = context.contentResolver
     private val sharedPrefs = context.getSharedPreferences("adns_settings", Context.MODE_PRIVATE)
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val notificationManager = NotificationsManager(context)
 
     init {
-        createNotificationChannel()
+        // DnsNotificationManager initializes the channel in its constructor
     }
 
     fun isAdBlockingActive(): Boolean {
@@ -261,56 +257,15 @@ class DnsRepository(rawContext: Context) {
         }
     }
 
-    private fun createNotificationChannel() {
-        val channelId = "dns_status_channel"
-        val name = context.getString(R.string.ad_blocker_state)
-        val importance = NotificationManager.IMPORTANCE_LOW
-
-        val channel = NotificationChannel(channelId, name, importance).apply {
-            description = context.getString(R.string.shows_the_state_of_the_ad_blocker)
-        }
-
-        val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+    fun updateNotification() {
+        notificationManager.updateNotification(isAdBlockingActive())
     }
 
-    fun updateNotification() {
+    fun isNotificationEnabled(): Boolean {
+        return notificationManager.isNotificationEnabled()
+    }
 
-        val isActive = isAdBlockingActive()
-        val channelId = "dns_status_channel"
-        val notificationManager = context.getSystemService(NotificationManager::class.java) ?: return
-
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent, PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val buttonIntent = Intent(context, ToggleReceiver::class.java).apply {
-            action = "TOGGLE_DNS"
-        }
-
-        val buttonPendingIntent = PendingIntent.getBroadcast(
-            context,
-            0,
-            buttonIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_qs_adns)
-            .setContentTitle(context.getString(R.string.ad_blocker))
-            .setContentText(if (isActive) context.getString(R.string.blocker_enabled) else context.getString(R.string.blocker_disabled))
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(isActive)
-            .setAutoCancel(false)
-            .setContentIntent(pendingIntent)
-            .addAction(
-                R.drawable.ic_qs_adns,
-                if (isActive) context.getString(R.string.disable_blocker) else context.getString(R.string.enable_blocker),
-                buttonPendingIntent
-            )
-            .build()
-
-        notificationManager.notify(1, notification)
+    fun setNotificationEnabled(enabled: Boolean) {
+        notificationManager.setNotificationEnabled(enabled, isAdBlockingActive())
     }
 }

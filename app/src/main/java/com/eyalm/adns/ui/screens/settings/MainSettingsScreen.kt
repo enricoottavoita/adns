@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Row
@@ -87,6 +88,7 @@ fun MainSettingsScreen(
 ) {
     val viewModel: SettingsViewModel = viewModel()
     val provider by viewModel.selectedProvider.collectAsState()
+    val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
     val context = LocalContext.current
 
 
@@ -100,11 +102,19 @@ fun MainSettingsScreen(
     val onAllowlistClick = remember(onPageChange) {  { viewModel.openListScreen(Allowlist.lists.first()) } }
     val onParentalControlClick = remember(onPageChange) { { onPageChange(Page.PARENTAL_CONTROL) } }
     val onSettingsPageClick = remember(onPageChange) { { onPageChange(Page.SETTINGS_PAGE) } }
-    val onNotificationsClick = remember(permissionLauncher) {
+    val onNotificationsClick = remember(permissionLauncher, notificationsEnabled) {
         {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                permissionLauncher?.launch(Manifest.permission.POST_NOTIFICATIONS)
+            val nextState = !notificationsEnabled
+            if (nextState) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    permissionLauncher?.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    viewModel.setNotificationsEnabled(true)
+                }
+            } else {
+                viewModel.setNotificationsEnabled(false)
             }
+            Unit
         }
     }
     val onLanguagePageClick = remember(onPageChange) { { onPageChange(Page.LANGUAGE) } }
@@ -246,9 +256,14 @@ fun MainSettingsScreen(
                         title = stringResource(R.string.state_notifications),
                         description = stringResource(R.string.enable_or_disable_blocker_state_notifications),
                         icon = Icons.Filled.Notifications,
-                        secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        interactiveItem = { isSelected, onClick ->
+                            Switch(
+                                checked = isSelected,
+                                onCheckedChange = { onClick() }
+                            )
+                        },
                         isFirst = true
-                    )
+                    ) // TODO: Move this to a dedicated "Notifications Settings" page. In that page show the state of the notification permission
                     ExpressiveListItem(
                         onClick = onAddQuickTile,
                         title = stringResource(R.string.add_the_quick_settings_tile),

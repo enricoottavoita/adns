@@ -85,19 +85,11 @@ class SettingsActivity : ComponentActivity() {
                 contract = ActivityResultContracts.RequestPermission()
             ) { isGranted: Boolean ->
                 if (isGranted) {
-                    viewModel.refreshNotification()
+                    viewModel.setNotificationsEnabled(true)
                     Log.d("Permission", "Permission Granted")
-                    val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, this@SettingsActivity.packageName)
-                        putExtra(Settings.EXTRA_CHANNEL_ID, "dns_status_channel")
-                    }
-                    this@SettingsActivity.startActivity(intent)
                 } else {
+                    viewModel.setNotificationsEnabled(false)
                     Log.d("Permission", "Permission Denied")
-                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, this@SettingsActivity.packageName)
-                    }
-                    this@SettingsActivity.startActivity(intent)
                 }
             }
 
