@@ -139,7 +139,8 @@ data class NextDnsLogEntry(
     @SerializedName("clientIp") val clientIp: String? = null,
     @SerializedName("status") val status: String, // "default" | "error" | "blocked" | "allowed"
     @SerializedName("reasons") val reasons: List<NextDnsLogReason> = emptyList(),
-    @SerializedName("device") val device: NextDnsLogDevice? = null
+    @SerializedName("device") val device: NextDnsLogDevice? = null,
+    @SerializedName("type") val type: String? = null
 )
 
 data class NextDnsLogReason(

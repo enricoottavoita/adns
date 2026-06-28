@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
@@ -17,17 +18,19 @@ import androidx.compose.ui.unit.dp
 fun ExpressiveIcon(
     icon: ImageVector,
     modifier: Modifier = Modifier.size(36.dp),
-    selected: Boolean = false
+    selected: Boolean = false,
+    bgcolor: Color? = null,
+    color: Color? = null
 ) {
-    val backgroundColor = if (selected) {
+    val backgroundColor =  if (selected) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        bgcolor ?: MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
     }
     val contentColor = if (selected) {
         MaterialTheme.colorScheme.onPrimary
     } else {
-        MaterialTheme.colorScheme.primary
+        color ?: MaterialTheme.colorScheme.primary
     }
 
     Box(

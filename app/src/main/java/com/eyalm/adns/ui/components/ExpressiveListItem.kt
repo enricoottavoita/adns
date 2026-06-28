@@ -25,6 +25,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.eyalm.adns.data.ListIcon
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -42,7 +46,8 @@ fun ExpressiveListItem(
     isFirst: Boolean = false,
     isLast: Boolean = false,
     stickIcon: Boolean = false,
-    iconSize: Dp = 36.dp
+    iconSize: Dp = 36.dp,
+    indicatorColor: Color? = null
 ) {
     val containerColor = MaterialTheme.colorScheme.surfaceContainer
     val itemColors = ListItemDefaults.colors(containerColor = containerColor)
@@ -118,21 +123,24 @@ fun ExpressiveListItem(
 
     val trailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
     val trailing = remember(secondIcon, interactiveItem, isSelected, onClick, trailingIconColor) {
-        @Composable {
-            if (secondIcon != null) {
-                Icon(
-                    imageVector = secondIcon,
-                    contentDescription = null,
-                    tint = trailingIconColor.copy(alpha = 0.7f)
-                )
-            }
-            if (interactiveItem != null) {
-                Row() {
-                    interactiveItem(isSelected, onClick)
-                    Spacer(modifier = Modifier.width(8.dp))
+        if (secondIcon != null || interactiveItem != null) {
+            @Composable {
+                if (secondIcon != null) {
+                    Icon(
+                        imageVector = secondIcon,
+                        contentDescription = null,
+                        tint = trailingIconColor.copy(alpha = 0.7f)
+                    )
+                }
+                if (interactiveItem != null) {
+                    Row() {
+                        interactiveItem(isSelected, onClick)
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                 }
             }
-
+        } else {
+            null
         }
     }
 
@@ -146,6 +154,21 @@ fun ExpressiveListItem(
         leadingContent = if (stickIcon) null else leading,
         trailingContent = trailing,
         supportingContent = supporting,
+        modifier = Modifier
+            .clip(itemShape)
+            .then(
+                if (indicatorColor != null) {
+                    Modifier.drawWithContent {
+                        drawContent()
+                        val widthPx = 4.dp.toPx()
+                        drawRect(
+                            color = indicatorColor,
+                            topLeft = Offset.Zero,
+                            size = Size(widthPx, size.height)
+                        )
+                    }
+                } else Modifier
+            ),
         content = {
             if (stickIcon) {
                 Row(

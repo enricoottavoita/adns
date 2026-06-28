@@ -1,7 +1,6 @@
 package com.eyalm.adns.ui.screens.settings
 
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
@@ -28,6 +26,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.RawOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,9 +34,10 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
@@ -49,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -79,7 +78,7 @@ fun LogsScreen(
     val items = viewModel.logsList
     val devices = viewModel.devicesList
 
-    var showConfig by remember { mutableStateOf(false) }
+    var showConfig by remember { mutableStateOf(true) }
     var expandedId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
@@ -90,9 +89,8 @@ fun LogsScreen(
 
     SettingsCategoryScreenTemplate(
         onBack = onBack,
-        title = stringResource(R.string.logs)
+        title = stringResource(R.string.logs),
     ) {
-        LazyColumn {
             item {
                 Row(
                     verticalAlignment = CenterVertically,
@@ -100,7 +98,7 @@ fun LogsScreen(
                         .fillMaxWidth()
                         .height(IntrinsicSize.Min)
                 ) {
-                    OutlinedTextField(
+                    TextField(
                         value = viewModel.searchQuery,
                         onValueChange = {
                             viewModel.updateSearchQuery(it)
@@ -110,12 +108,22 @@ fun LogsScreen(
                             .weight(1f)
                             .fillMaxHeight(),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                        )
                     )
+
                     Spacer(modifier = Modifier.width(8.dp))
                     ExpressiveIcon(
                         icon = Icons.Default.Settings,
                         selected = showConfig,
+                        bgcolor = MaterialTheme.colorScheme.surfaceContainer,
                         modifier = Modifier
                             .fillMaxHeight()
                             .aspectRatio(1f)
@@ -124,6 +132,7 @@ fun LogsScreen(
                                 role = Role.Button
                             )
                     )
+
                 }
             }
 
@@ -222,118 +231,159 @@ fun LogsScreen(
 
             item { Spacer(Modifier.height(8.dp)) }
 
-            items(items.size) { index ->
-                val log = items[index]
-                ExpressiveListItem(
-                    title = log.domain,
-                    onClick = { expandedId = if (expandedId == index) null else index },
-                    altLeadingContent = {
-                        Row(
-                            verticalAlignment = CenterVertically
-                        ) {
-                            val indicatorColor = when (log.status) {
-                                "blocked" -> MaterialTheme.colorScheme.error
-                                else -> Color.Transparent
-                            }
-                            if (indicatorColor != Color.Transparent) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(4.dp)
-                                        .height(18.dp)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(indicatorColor)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                            }
+            if (viewModel.isInitialLoading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            } else if (items.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.no_logs_found),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                items(items.size) { index ->
+                    val log = items[index]
+                    LaunchedEffect(index) {
+                        if (index >= items.size - 5) {
+                            viewModel.fetchNextPage()
+                        }
+                    }
+                    ExpressiveListItem(
+                        title = log.domain,
+                        onClick = { expandedId = if (expandedId == index) null else index },
+                        indicatorColor = if (log.status == "blocked") MaterialTheme.colorScheme.error else null,
+                        altLeadingContent = {
                             ListIconView(
                                 icon = ListIcon.Url("https://favicons.nextdns.io/${log.domain.toHexId()}@3x.png"),
                                 modifier = Modifier.size(24.dp)
                             )
-                        }
-                    },
-                    isFirst = index == 0,
-                    isLast = index == items.lastIndex,
-                    altContent = {
-                        if (expandedId == index) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                log.device?.let { dev ->
-                                    val devName = dev.name ?: ""
-                                    val devModel = dev.model?.let { " ($it)" } ?: ""
-                                    if (devName.isNotEmpty() || devModel.isNotEmpty()) {
-                                        DetailRow(label = stringResource(R.string.device), value = "$devName$devModel")
-                                    }
-                                }
-
-                                DetailRow(label = "Time", value = formatLogTimestamp(log.timestamp))
-
-                                val encryptionStr = if (log.encrypted) stringResource(R.string.encrypted) else stringResource(
-                                    R.string.unencrypted
-                                )
-                                DetailRow(label = stringResource(R.string.protocol), value = "${log.protocol}$encryptionStr")
-
-                                log.clientIp?.let { ip ->
-                                    DetailRow(label = stringResource(R.string.client_ip), value = ip)
-                                }
-
-                                if (log.status == "blocked" && log.reasons.isNotEmpty()) {
-                                    val reasonsStr = log.reasons.joinToString(", ") { it.name }
-                                    DetailRow(label = stringResource(R.string.blocked_by), value = reasonsStr, isErrorColor = true)
-                                }
-
-                                Spacer(Modifier.height(8.dp))
-
-
-                                val options = listOf(stringResource(R.string.allow),
-                                    stringResource(
-                                        R.string.deny
-                                    ), stringResource(R.string.copy))
-                                val unCheckedIcons =
-                                    listOf(
-                                        Icons.Filled.Check,
-                                        Icons.Filled.Block,
-                                        Icons.Filled.CopyAll
-                                    )
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        },
+                        isFirst = index == 0,
+                        isLast = index == items.lastIndex,
+                        altContent = {
+                            if (expandedId == index) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    options.forEachIndexed { index, label ->
-                                        val shapes = when (index) {
-                                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                            options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                                        }
-                                        ToggleButton(
-                                            checked = true,
-                                            onCheckedChange = { },
-                                            modifier = Modifier.weight(1f),
-                                            shapes = shapes.copy(checkedShape = shapes.shape), // TODO change colors, logic
-                                        ) {
-                                            Icon(
-                                                unCheckedIcons[index],
-                                                contentDescription = "Localized description",
-                                            )
-                                            Spacer(Modifier.size(ToggleButtonDefaults.IconSpacing))
-                                            Text(label)
+                                    log.device?.let { dev ->
+                                        val devName = dev.name ?: ""
+                                        val devModel = dev.model?.let { " ($it)" } ?: ""
+                                        if (devName.isNotEmpty() || devModel.isNotEmpty()) {
+                                            DetailRow(label = stringResource(R.string.device), value = "$devName$devModel")
                                         }
                                     }
-                                }
 
+                                    DetailRow(label = "Time", value = formatLogTimestamp(log.timestamp))
+
+                                    val encryptionStr = if (log.encrypted) stringResource(R.string.encrypted) else stringResource(
+                                        R.string.unencrypted
+                                    )
+                                    DetailRow(label = stringResource(R.string.protocol), value = "${log.protocol}$encryptionStr")
+
+                                    log.clientIp?.let { ip ->
+                                        DetailRow(label = stringResource(R.string.client_ip), value = ip)
+                                    }
+
+                                    if (viewModel.rawEnabled) {
+                                        log.type?.let {
+                                            DetailRow(label = "Type", value = it)
+
+                                        }
+                                    }
+                                    if (log.status == "blocked" && log.reasons.isNotEmpty()) {
+                                        val reasonsStr = log.reasons.joinToString(", ") { it.name }
+                                        DetailRow(label = stringResource(R.string.blocked_by), value = reasonsStr, isErrorColor = true)
+                                    }
+
+                                    Spacer(Modifier.height(8.dp))
+
+
+                                    val options = listOf(stringResource(R.string.allow),
+                                        stringResource(
+                                            R.string.deny
+                                        ), stringResource(R.string.copy))
+                                    val unCheckedIcons =
+                                        listOf(
+                                            Icons.Filled.Check,
+                                            Icons.Filled.Block,
+                                            Icons.Filled.CopyAll
+                                        )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        options.forEachIndexed { index, label ->
+                                            val shapes = when (index) {
+                                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                                options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                                            }
+                                            ToggleButton(
+                                                checked = true,
+                                                onCheckedChange = { },
+                                                modifier = Modifier.weight(1f),
+                                                shapes = shapes.copy(checkedShape = shapes.shape), // TODO logic
+                                                colors = ToggleButtonDefaults.toggleButtonColors(
+                                                    checkedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                                    checkedContentColor = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            ) {
+                                                Icon(
+                                                    unCheckedIcons[index],
+                                                    contentDescription = "Localized description",
+                                                )
+                                                Spacer(Modifier.size(ToggleButtonDefaults.IconSpacing))
+                                                Text(label)
+                                            }
+                                        }
+                                    }
+
+                                }
                             }
+                        },
+                        stickIcon = true,
+                        iconSize = 24.dp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                if (viewModel.isFetchingMore) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
                         }
-                    },
-                    stickIcon = true,
-                    iconSize = 24.dp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-            }
+                    }
+                }
         }
     }
 }
