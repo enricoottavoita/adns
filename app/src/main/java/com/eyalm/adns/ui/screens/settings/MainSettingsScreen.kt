@@ -1,5 +1,4 @@
 package com.eyalm.adns.ui.screens.settings
-import androidx.compose.ui.res.stringResource
 
 
 import android.Manifest
@@ -20,36 +19,26 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BroadcastOnPersonal
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SettingsSuggest
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.ui.semantics.Role
-import androidx.compose.foundation.layout.Row
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
-import android.app.Activity
-import com.eyalm.adns.data.LocaleHelper
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -118,6 +108,7 @@ fun MainSettingsScreen(
         }
     }
     val onLanguagePageClick = remember(onPageChange) { { onPageChange(Page.LANGUAGE) } }
+    val onLogsClick =   remember(onPageChange) { { onPageChange(Page.LOGS)} }
 
 
         LazyColumn(
@@ -229,6 +220,13 @@ fun MainSettingsScreen(
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         )
                         ExpressiveListItem(
+                            title = stringResource(R.string.logs),
+                            description = stringResource(R.string.view_your_dns_logs),
+                            onClick = onLogsClick,
+                            icon = Icons.AutoMirrored.Filled.List,
+                            secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            )
+                        ExpressiveListItem(
                             title = stringResource(R.string.general_profile_settings),
                             description = stringResource(R.string.logs_performance_block_page),
                             onClick = onSettingsPageClick,
@@ -287,7 +285,9 @@ fun MainSettingsScreen(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
                     onClick = {
                         val url = "https://github.com/eyalm2000/adns"
                         val intent = Intent(Intent.ACTION_VIEW, url.toUri())
@@ -313,7 +313,8 @@ fun MainSettingsScreen(
                         )
 
                         Text(
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
                                 .padding(top = 12.dp, bottom = 4.dp),
                             text = "ADNS",
                             fontWeight = FontWeight.Bold,

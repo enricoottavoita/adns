@@ -14,18 +14,32 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun ExpressiveIcon(icon: ImageVector) {
+fun ExpressiveIcon(
+    icon: ImageVector,
+    modifier: Modifier = Modifier.size(36.dp),
+    selected: Boolean = false
+) {
+    val backgroundColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
     Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = contentColor,
             modifier = Modifier.size(20.dp)
         )
     }

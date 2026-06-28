@@ -58,7 +58,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         SETTINGS_PAGE,
         GENERIC_LIST,
         BLOCKLISTS,
-        LANGUAGE
+        LOGS,
+        LANGUAGE,
     }
 
     private val repository = DnsRepository(application)
@@ -494,7 +495,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _activeListIds.value += cleanDomain
 
         viewModelScope.launch {
-            val success = apiRepository.addCustomListItem(listSetting.apiPage, cleanDomain)
+            val success = apiRepository.addCustomListItem(listSetting.apiPage, cleanDomain) is ApiRepository.AddListResult.Success
             if (!success) {
                 _availableItems.value = _availableItems.value.filter { it.id != cleanDomain }
                 _activeListIds.value -= cleanDomain

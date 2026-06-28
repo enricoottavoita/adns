@@ -10,11 +10,14 @@ import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.data.network.ApiClient
 import com.eyalm.adns.data.network.NextDnsAnalytics
 import com.eyalm.adns.data.network.NextDnsCreateProfileRequest
+import com.eyalm.adns.data.network.NextDnsDeviceItem
 import com.eyalm.adns.data.network.NextDnsDomainsResponse
+import com.eyalm.adns.data.network.NextDnsErrorResponse
 import com.eyalm.adns.data.network.NextDnsLoginRequest
 import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
 import com.eyalm.adns.data.network.NextDnsLoginResponse
+import com.eyalm.adns.data.network.NextDnsLogsResponse
 import com.eyalm.adns.data.network.toHexId
 import com.google.gson.Gson
 import com.google.gson.JsonArray
@@ -45,8 +48,8 @@ class ApiRepository(private val context: Context) {
     val keyManager = TokenManager(context)
 
 
-    suspend fun NextDnsLogin(email: String, password: String, code: String? = null): LoginResult {
-        return try {
+    suspend fun NextDnsLogin(email: String, password: String, code: String? = null): LoginResult = withContext(Dispatchers.IO) {
+        return@withContext try {
             val loginRequest = NextDnsLoginRequest(email, password, code)
             val response = ApiClient.nextDnsApi.login(loginRequest)
             val responseText = response.body()?.string() ?: response.errorBody()?.string() ?: ""
@@ -66,22 +69,24 @@ class ApiRepository(private val context: Context) {
                     keyManager.saveApiKey(apiKey)
                     keyManager.saveEmail(email)
                     Log.d("ApiRepository", "Login successful, API key saved securely")
-                    return LoginResult.Success
+                    LoginResult.Success
+                } else {
+                    LoginResult.Error("Login failed")
                 }
-            }
-
-            val nextDnsResponse = try {
-                Gson().fromJson(responseText, NextDnsLoginResponse::class.java)
-            } catch (e: Exception) {
-                null
-            }
-
-            if (nextDnsResponse?.requiresCode == true) {
-                LoginResult.RequiresTwoFactor
             } else {
-                val errorMessage = if (responseText.isNotEmpty()) responseText else context.getString(R.string.login_failed, response.code())
-                e("ApiRepository", "Login Failed: $errorMessage")
-                LoginResult.Error(errorMessage)
+                val nextDnsResponse = try {
+                    Gson().fromJson(responseText, NextDnsLoginResponse::class.java)
+                } catch (e: Exception) {
+                    null
+                }
+
+                if (nextDnsResponse?.requiresCode == true) {
+                    LoginResult.RequiresTwoFactor
+                } else {
+                    val errorMessage = if (responseText.isNotEmpty()) responseText else context.getString(R.string.login_failed, response.code())
+                    e("ApiRepository", "Login Failed: $errorMessage")
+                    LoginResult.Error(errorMessage)
+                }
             }
 
         } catch (e: Exception) {
@@ -256,8 +261,8 @@ class ApiRepository(private val context: Context) {
         }
     }
 
-    suspend fun getActiveListItems(page: String, feat: String): List<String> {
-        return try {
+    suspend fun getActiveListItems(page: String, feat: String): List<String> = withContext(Dispatchers.IO) {
+        return@withContext try {
             val profileId = requireAuth()
             val response = ApiClient.nextDnsApi.getActiveListItems(
                 profileId, page, feat
@@ -314,12 +319,37 @@ class ApiRepository(private val context: Context) {
         } catch (e: Exception) { null }
     }
 
-    suspend fun addCustomListItem(page: String, domain: String): Boolean {
-        return try {
-            val profileId = requireAuth()
+    sealed class AddListResult {
+        object Success : AddListResult()
+        object AlreadyAdded : AddListResult()
+        data class Error(val code: String) : AddListResult()
+    }
+
+    suspend fun addCustomListItem(page: String, domain: String): AddListResult = withContext(Dispatchers.IO) {
+        val profileId = requireAuth()
+        return@withContext try {
             val response = ApiClient.nextDnsApi.addCustomItem(profileId, page, mapOf("id" to domain))
-            response.isSuccessful
-        } catch (e: Exception) { false }
+            if (response.isSuccessful) {
+                AddListResult.Success
+            } else {
+                val errorBody = response.errorBody()?.string() ?: ""
+                val errorResponse = try {
+                    Gson().fromJson(errorBody, NextDnsErrorResponse::class.java)
+                } catch (e: Exception) {
+                    null
+                }
+
+                val isDuplicate = errorResponse?.errors?.any { it.code == "duplicate" } == true
+                if (isDuplicate) {
+                    AddListResult.AlreadyAdded
+                } else {
+                    AddListResult.Error(errorResponse?.errors?.firstOrNull()?.code ?: "unknown")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Error adding $domain to $page", e)
+            AddListResult.Error(e.localizedMessage ?: "network_error")
+        }
     }
 
     suspend fun patchCustomListItem(page: String, domain: String, isActive: Boolean): Boolean {
@@ -346,6 +376,39 @@ class ApiRepository(private val context: Context) {
         } catch (e: Exception) {
             e("ApiRepository", "Error fetching analytics/$feature", e)
             null
+        }
+    }
+
+    suspend fun getNextDnsLogs(
+        cursor: String? = null,
+        search: String? = null,
+        blockedOnly: Boolean = false,
+        rawLogs: Boolean = false,
+        deviceId: String? = null
+    ): NextDnsLogsResponse? = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val profileId = requireAuth()
+            ApiClient.nextDnsApi.getLogs(
+                profileId = profileId,
+                cursor = cursor,
+                search = search?.takeIf { it.isNotBlank() },
+                status = if (blockedOnly) "blocked" else null,
+                raw = if (rawLogs) 1 else null,
+                device = deviceId
+            )
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Failed to load NextDNS logs", e)
+            null
+        }
+    }
+
+    suspend fun getNextDnsDevices(): List<NextDnsDeviceItem> = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val profileId = requireAuth()
+            ApiClient.nextDnsApi.getDevices(profileId).data
+        } catch (e: Exception) {
+            Log.e("ApiRepository", "Failed to load NextDNS devices", e)
+            emptyList()
         }
     }
 

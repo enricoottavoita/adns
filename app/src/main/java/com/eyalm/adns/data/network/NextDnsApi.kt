@@ -138,4 +138,23 @@ interface NextDnsApi {
     ): JsonObject
 
 
+    @GET("profiles/{profileId}/logs")
+    suspend fun getLogs(
+        @Path("profileId") profileId: String,
+        @Query("cursor") cursor: String? = null,
+        @Query("device") device: String? = null,
+        @Query("status") status: String? = null, // blocked / allowed / default / error
+        @Query("search") search: String? = null,
+        @Query("raw") raw: Int? = null,          // 1 = raw
+        @Query("limit") limit: Int? = 100
+    ): NextDnsLogsResponse
+
+    @GET("profiles/{profileId}/analytics/devices")
+    suspend fun getDevices(
+        @Path("profileId") profileId: String,
+        @Query("from") from: String = "-3M",
+        @Query("limit") limit: Int = 200
+    ): NextDnsDevicesResponse
+
+
 }

@@ -1,8 +1,11 @@
 package com.eyalm.adns.ui.components
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.eyalm.adns.data.ListIcon
 
@@ -37,6 +41,8 @@ fun ExpressiveListItem(
     description: String? = null,
     isFirst: Boolean = false,
     isLast: Boolean = false,
+    stickIcon: Boolean = false,
+    iconSize: Dp = 36.dp
 ) {
     val containerColor = MaterialTheme.colorScheme.surfaceContainer
     val itemColors = ListItemDefaults.colors(containerColor = containerColor)
@@ -52,23 +58,24 @@ fun ExpressiveListItem(
 
     val itemShapes = ListItemDefaults.shapes(shape = itemShape)
 
-    val leading = remember(icon, altLeadingContent, isSelected) {
+    val leading = remember(icon, altLeadingContent, altIconUrl, isSelected, stickIcon, iconSize) {
         @Composable {
-            if (icon != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ExpressiveIcon(icon)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    ExpressiveIcon(icon, Modifier.size(iconSize))
                     Spacer(Modifier.width(4.dp))
                 }
-            }
-            if (altLeadingContent != null) {
-                altLeadingContent(isSelected)
-            }
-            if (altIconUrl != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                if (altLeadingContent != null) {
+                    Box(Modifier.size(iconSize), contentAlignment = Alignment.Center) {
+                        altLeadingContent(isSelected)
+                    }
+                    Spacer(Modifier.width(4.dp))
+                }
+                if (altIconUrl != null) {
                     ListIconView(
                         icon = ListIcon.Url(altIconUrl),
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(iconSize)
                             .clip(RoundedCornerShape(8.dp))
                     )
                     Spacer(Modifier.width(4.dp))
@@ -134,11 +141,24 @@ fun ExpressiveListItem(
         selected = isSelected,
         colors = itemColors,
         onClick = onClick,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = if (stickIcon) Alignment.Top else Alignment.CenterVertically,
         shapes = itemShapes,
-        leadingContent = leading,
+        leadingContent = if (stickIcon) null else leading,
         trailingContent = trailing,
         supportingContent = supporting,
-        content = mainContent
+        content = {
+            if (stickIcon) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 36.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    leading()
+                    Spacer(Modifier.width(8.dp))
+                    mainContent()
+                }
+            } else {
+                mainContent()
+            }
+        }
     )
 }

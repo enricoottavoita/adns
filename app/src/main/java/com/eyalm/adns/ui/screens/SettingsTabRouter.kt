@@ -1,6 +1,4 @@
 package com.eyalm.adns.ui.screens
-import com.eyalm.adns.R
-import androidx.compose.ui.res.stringResource
 
 
 import androidx.activity.compose.BackHandler
@@ -20,7 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.eyalm.adns.R
 import com.eyalm.adns.data.ParentalControlSettings
 import com.eyalm.adns.data.PrivacySettings
 import com.eyalm.adns.data.SecuritySettings
@@ -30,6 +30,7 @@ import com.eyalm.adns.ui.screens.settings.BlocklistsScreen
 import com.eyalm.adns.ui.screens.settings.GenericCategoryScreen
 import com.eyalm.adns.ui.screens.settings.GenericListScreen
 import com.eyalm.adns.ui.screens.settings.LanguageScreen
+import com.eyalm.adns.ui.screens.settings.LogsScreen
 import com.eyalm.adns.ui.screens.settings.MainSettingsScreen
 import com.eyalm.adns.ui.screens.settings.ProvidersScreen
 import com.eyalm.adns.viewmodel.SettingsViewModel
@@ -171,6 +172,12 @@ fun SettingsTabRouter(
                 BackHandler { viewModel.setPage(parentPage) }
                 GenericListScreen(
                     onBack = { viewModel.setPage(parentPage) }
+                )
+            }
+            SettingsViewModel.Page.LOGS -> {
+                BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
+                LogsScreen(
+                    onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
             }
             SettingsViewModel.Page.LANGUAGE -> {

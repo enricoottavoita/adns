@@ -5,8 +5,8 @@ import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
@@ -42,7 +42,7 @@ fun ListIconView(
 
     Box(
         modifier = modifier
-            .size(40.dp)
+            .defaultMinSize(minWidth = 40.dp, minHeight = 40.dp)
             .background(
                 color = Color.Transparent,
                 shape = CircleShape
@@ -55,7 +55,7 @@ fun ListIconView(
                     imageVector = icon.imageVector,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.fillMaxSize(0.6f)
                 )
             }
             is ListIcon.Text -> {
@@ -80,7 +80,7 @@ fun ListIconView(
                         imageVector = Icons.Default.Image,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.fillMaxSize(0.5f)
                     )
                 }
             }
