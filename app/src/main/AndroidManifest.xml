@@ -26,12 +26,6 @@
             android:label="@string/title_activity_provider_login"
             android:theme="@style/Theme.Adns" />
         <activity
-            android:name=".SettingsActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize"
-            android:label="@string/title_activity_settings"
-            android:theme="@style/Theme.Adns" />
-        <activity
             android:name=".OnboardingActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize"

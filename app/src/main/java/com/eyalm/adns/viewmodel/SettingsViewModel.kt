@@ -27,7 +27,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyalm.adns.R
 import com.eyalm.adns.data.ApiRepository
-import com.eyalm.adns.data.Blocklist
 import com.eyalm.adns.data.DnsRepository
 import com.eyalm.adns.data.ListIcon
 import com.eyalm.adns.data.ListItem
@@ -57,7 +56,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         PARENTAL_CONTROL,
         SETTINGS_PAGE,
         GENERIC_LIST,
-        BLOCKLISTS,
         LOGS,
         LANGUAGE,
     }
@@ -137,12 +135,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun isLoggedIn(provider: DnsProvider): Boolean {
         return when (provider) {
-            DnsProviders.NEXTDNS -> try {
-                apiRepository.requireAuth()
-                true
-            } catch (e: Exception) {
-                false
-            }
+            DnsProviders.NEXTDNS -> apiRepository.isSignedIn()
             else -> false
         }
     }
@@ -520,30 +513,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 if (wasActive) _activeListIds.value += domain
                 _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_delete, domain))
             }
-        }
-    }
-
-    // old methods
-
-    var blocklists: List<Blocklist>? by mutableStateOf(null)
-
-    fun getBlocklists() {
-        viewModelScope.launch {
-            val blocklistsResponse = apiRepository.getNextDnsBlocklists()
-            blocklists = blocklistsResponse
-        }
-    }
-
-
-    fun updateBlocklists(blocklistId: String) {
-        viewModelScope.launch {
-            apiRepository.updateNextDnsBlocklists(blocklistId)
-        }
-    }
-
-    fun removeBlocklists(blocklistId: String) {
-        viewModelScope.launch {
-            apiRepository.removeNextDnsBlocklists(blocklistId)
         }
     }
 

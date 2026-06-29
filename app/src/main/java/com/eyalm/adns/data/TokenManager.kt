@@ -8,8 +8,24 @@ import com.google.crypto.tink.aead.AeadConfig
 import com.google.crypto.tink.aead.AesGcmKeyManager
 import com.google.crypto.tink.integration.android.AndroidKeysetManager
 
-class TokenManager(context: Context) {
-    private val prefs = context.getSharedPreferences("secure_prefs", Context.MODE_PRIVATE)
+class TokenManager private constructor(context: Context) {
+    private val prefs = context.applicationContext
+        .getSharedPreferences("secure_prefs", Context.MODE_PRIVATE)
+
+    private val apiKeyLock = Any()
+    private val emailLock = Any()
+
+    @Volatile
+    private var apiKeyLoaded = false
+
+    @Volatile
+    private var cachedApiKey: String? = null
+
+    @Volatile
+    private var emailLoaded = false
+
+    @Volatile
+    private var cachedEmail: String? = null
 
     private val aead: Aead by lazy {
         AeadConfig.register() // Registers the encryption algorithms with Tink
@@ -27,46 +43,83 @@ class TokenManager(context: Context) {
     fun saveApiKey(value: String) {
         val encryptedBytes = aead.encrypt(value.toByteArray(Charsets.UTF_8), null)
         val base64Encoded = Base64.encodeToString(encryptedBytes, Base64.DEFAULT)
-        prefs.edit { putString("api_key", base64Encoded) }
-    }
-
-    fun getApiKey(): String? {
-        val base64Encoded = prefs.getString("api_key", null) ?: return null
-        return try {
-            val encryptedBytes = Base64.decode(base64Encoded, Base64.DEFAULT)
-            val decryptedBytes = aead.decrypt(encryptedBytes, null)
-            String(decryptedBytes, Charsets.UTF_8)
-        } catch (e: Exception) {
-            null
+        synchronized(apiKeyLock) {
+            prefs.edit { putString("api_key", base64Encoded) }
+            cachedApiKey = value
+            apiKeyLoaded = true
         }
     }
 
-    fun hasToken(): Boolean {
-        return prefs.contains("api_key")
+    fun getApiKey(): String? {
+        if (apiKeyLoaded) return cachedApiKey
+
+        return synchronized(apiKeyLock) {
+            if (!apiKeyLoaded) {
+                cachedApiKey = decryptPreference("api_key")
+                apiKeyLoaded = true
+            }
+            cachedApiKey
+        }
     }
 
+    fun hasToken(): Boolean = getApiKey() != null
+
     fun destroyApiKey() {
-        prefs.edit { remove("api_key") }
+        synchronized(apiKeyLock) {
+            prefs.edit { remove("api_key") }
+            cachedApiKey = null
+            apiKeyLoaded = true
+        }
     }
 
     fun saveEmail(value: String) {
         val encryptedBytes = aead.encrypt(value.toByteArray(Charsets.UTF_8), null)
         val base64Encoded = Base64.encodeToString(encryptedBytes, Base64.DEFAULT)
-        prefs.edit { putString("email", base64Encoded) }
+        synchronized(emailLock) {
+            prefs.edit { putString("email", base64Encoded) }
+            cachedEmail = value
+            emailLoaded = true
+        }
     }
 
     fun getEmail(): String? {
-        val base64Encoded = prefs.getString("email", null) ?: return null
-        return try {
-            val encryptedBytes = Base64.decode(base64Encoded, Base64.DEFAULT)
-            val decryptedBytes = aead.decrypt(encryptedBytes, null)
-            String(decryptedBytes, Charsets.UTF_8)
-        } catch (e: Exception) {
-            null
+        if (emailLoaded) return cachedEmail
+
+        return synchronized(emailLock) {
+            if (!emailLoaded) {
+                cachedEmail = decryptPreference("email")
+                emailLoaded = true
+            }
+            cachedEmail
         }
     }
 
     fun destroyEmail() {
-        prefs.edit { remove("email") }
+        synchronized(emailLock) {
+            prefs.edit { remove("email") }
+            cachedEmail = null
+            emailLoaded = true
+        }
+    }
+
+    private fun decryptPreference(name: String): String? {
+        val base64Encoded = prefs.getString(name, null) ?: return null
+        return try {
+            val encryptedBytes = Base64.decode(base64Encoded, Base64.DEFAULT)
+            val decryptedBytes = aead.decrypt(encryptedBytes, null)
+            String(decryptedBytes, Charsets.UTF_8)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    companion object {
+        @Volatile
+        private var instance: TokenManager? = null
+
+        fun getInstance(context: Context): TokenManager =
+            instance ?: synchronized(this) {
+                instance ?: TokenManager(context.applicationContext).also { instance = it }
+            }
     }
 }

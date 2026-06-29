@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -62,7 +61,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.DnsRepository
 import com.eyalm.adns.data.LocaleHelper
-import com.eyalm.adns.data.Locales
 import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.ui.screens.HomeScreen
@@ -129,7 +127,6 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         handleShortcutIntent(intent)
-        Locales.init(context)
 
         lifecycleScope.launch {
             // migrate from 1.0.3
@@ -152,7 +149,6 @@ class MainActivity : ComponentActivity() {
                 val isEnabled by viewModel.adBlockingState.collectAsState()
                 val runningTime by viewModel.runningTimeFlow.collectAsState()
                 val server by viewModel.dnsUrlFlow.collectAsState()
-                val showDialog = remember { mutableStateOf(false) }
                 val settingsPage by settingsViewModel.page.collectAsState()
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -168,17 +164,6 @@ class MainActivity : ComponentActivity() {
                         checkForUpdate = viewModel::checkForUpdate,
                         settingsPage = settingsPage
 
-                    )
-                }
-
-                if (showDialog.value) {
-                    DnsDialog(
-                        onDismissRequest = { showDialog.value = false },
-                        onConfirmation = {
-                            viewModel.setDnsUrl(it)
-                            showDialog.value = false
-                        },
-                        currentUrl = server
                     )
                 }
 

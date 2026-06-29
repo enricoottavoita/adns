@@ -84,7 +84,6 @@ fun MainSettingsScreen(
 
 
     val onAccountSettingsClick = remember(onPageChange) { { onPageChange(Page.ACCOUNT_SETTINGS) } }
-    val onBlocklistsClick = remember(onPageChange) { { onPageChange(Page.BLOCKLISTS) } }
     val onProvidersClick = remember(onPageChange) { { onPageChange(Page.PROVIDERS) } }
     val onSecurityClick = remember(onPageChange) { { onPageChange(Page.SECURITY) } }
     val onPrivacyClick = remember(onPageChange) { { onPageChange(Page.PRIVACY) } }

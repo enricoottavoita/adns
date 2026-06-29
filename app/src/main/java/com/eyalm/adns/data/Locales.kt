@@ -1,34 +1,35 @@
 package com.eyalm.adns.data
 
 import android.content.Context
-import android.util.Log
+import com.eyalm.adns.BuildConfig
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 object Locales {
     private var data: Map<String, Any> = emptyMap()
 
-
+    @Synchronized
     fun init(context: Context) {
         if (data.isNotEmpty()) return
 
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val json = context.assets.open("locales/nextdns/en.json")
-                    .bufferedReader()
-                    .use { it.readText() }
-                val type = object : TypeToken<Map<String, Any>>() {}.type
-                data = Gson().fromJson(json, type)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Log.e("Locales", "Failed to load locales: ${e.message}")
+        data = context.assets
+            .open("locales/nextdns/en.json")
+            .bufferedReader()
+            .use { reader ->
+                Gson().fromJson(
+                    reader,
+                    object : TypeToken<Map<String, Any>>() {}.type
+                )
             }
-        }
     }
 
+
+    private fun missing(path: Array<out String>): String =
+        if (BuildConfig.DEBUG) {
+            "[missing:${path.joinToString(".")}]"
+        } else {
+            path.lastOrNull().orEmpty()
+        }
 
     // Locales.getString("security", "feeds", "name")
     // "Threat Intelligence Feeds"
@@ -38,10 +39,10 @@ object Locales {
             if (current is Map<*, *>) {
                 current = current[key]
             } else {
-                return ""
+                return missing(path)
             }
         }
-        return (current as? String) ?: ""
+        return (current as? String) ?: missing(path)
     }
 
 

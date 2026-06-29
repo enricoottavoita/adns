@@ -26,7 +26,6 @@ import com.eyalm.adns.data.PrivacySettings
 import com.eyalm.adns.data.SecuritySettings
 import com.eyalm.adns.data.SettingsPageSettings
 import com.eyalm.adns.ui.screens.settings.AccountSettingsScreen
-import com.eyalm.adns.ui.screens.settings.BlocklistsScreen
 import com.eyalm.adns.ui.screens.settings.GenericCategoryScreen
 import com.eyalm.adns.ui.screens.settings.GenericListScreen
 import com.eyalm.adns.ui.screens.settings.LanguageScreen
@@ -112,13 +111,6 @@ fun SettingsTabRouter(
             SettingsViewModel.Page.ACCOUNT_SETTINGS -> {
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 AccountSettingsScreen(
-                    onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) },
-                    provider = selectedProvider
-                )
-            }
-            SettingsViewModel.Page.BLOCKLISTS -> {
-                BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
-                BlocklistsScreen(
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) },
                     provider = selectedProvider
                 )
