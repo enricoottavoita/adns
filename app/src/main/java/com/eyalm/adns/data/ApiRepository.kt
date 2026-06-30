@@ -18,11 +18,18 @@ import com.eyalm.adns.data.network.NextDnsLogsResponse
 import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
 import com.eyalm.adns.data.network.toHexId
+import com.eyalm.adns.data.nextdns.api.NextDnsErrorParser
+import com.eyalm.adns.data.nextdns.settings.ApiBinding
+import com.eyalm.adns.data.nextdns.settings.nestedPayload
+import com.eyalm.adns.domain.nextdns.ApiResult
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
+import retrofit2.Response
 
 data class Blocklist(
     val id: String,
@@ -236,32 +243,87 @@ class ApiRepository(private val context: Context) {
         return profileId
     }
 
-    suspend fun getPageSettings(page: String): JsonObject? {
+    suspend fun getScalarSettings(page: String): ApiResult<JsonObject> {
+        val profileId = requireSelectedProfileId()
         return try {
-            val profileId = requireSelectedProfileId()
             val response = ApiClient.nextDnsApi.getPageSettings(profileId, page)
-            response.getAsJsonObject("data")
-        } catch (e: Exception) {
-            e("ApiRepository", "Error fetching $page settings", e)
-            null
+            if (!response.isSuccessful) return response.toServerFailure()
+
+            val root = response.body()
+                ?: return ApiResult.SerializationFailure(
+                    IllegalStateException("Missing $page settings response body")
+                )
+            val problems = NextDnsErrorParser.parse(root)
+            if (problems.isNotEmpty()) {
+                return ApiResult.ServerFailure(
+                    status = response.code(),
+                    problems = problems,
+                    requestId = response.requestId(),
+                )
+            }
+
+            val data = root.get("data")
+            if (data == null || !data.isJsonObject) {
+                ApiResult.SerializationFailure(
+                    IllegalStateException("Missing data object in $page settings response")
+                )
+            } else {
+                ApiResult.Success(data.asJsonObject, response.code())
+            }
+
+        } catch (error: IOException) {
+            ApiResult.NetworkFailure(error)
+        } catch (error: Exception) {
+            e("ApiRepository", "Error fetching $page settings", error)
+            ApiResult.SerializationFailure(error)
         }
     }
 
-    suspend fun patchPageSettings(
-        page: String,
-        payload: Map<String, Any>
-    ): Boolean {
+    suspend fun patchScalarSetting(
+        binding: ApiBinding,
+        encodedValue: Any,
+    ): ApiResult<Unit> {
+        val profileId = requireSelectedProfileId()
         return try {
-            val profileId = requireSelectedProfileId()
             val response = ApiClient.nextDnsApi.patchPageSettings(
-                profileId, page, payload
+                profileId = profileId,
+                page = binding.page,
+                payload = nestedPayload(binding.path, encodedValue),
             )
-            response.isSuccessful
-        } catch (e: Exception) {
-            e("ApiRepository", "Error patching $page", e)
-            false
+            if (!response.isSuccessful) return response.toServerFailure()
+
+            val problems = response.body()?.let(NextDnsErrorParser::parse).orEmpty()
+            if (problems.isNotEmpty()) {
+                ApiResult.ServerFailure(
+                    status = response.code(),
+                    problems = problems,
+                    requestId = response.requestId(),
+                )
+            } else {
+                ApiResult.Success(Unit, response.code())
+            }
+        } catch (error: IOException) {
+            ApiResult.NetworkFailure(error)
+        } catch (error: Exception) {
+            e("ApiRepository", "Error patching ${binding.page}", error)
+            ApiResult.SerializationFailure(error)
         }
     }
+
+    private fun Response<*>.toServerFailure(): ApiResult.ServerFailure {
+        val body = errorBody()?.string()
+        val root = body
+            ?.takeIf(String::isNotBlank)
+            ?.let { raw -> runCatching { JsonParser.parseString(raw).asJsonObject }.getOrNull() }
+        return ApiResult.ServerFailure(
+            status = code(),
+            problems = root?.let(NextDnsErrorParser::parse).orEmpty(),
+            requestId = requestId(),
+        )
+    }
+
+    private fun Response<*>.requestId(): String? =
+        headers()["X-Request-Id"] ?: headers()["X-Request-ID"]
 
     suspend fun getActiveListItems(page: String, feat: String): List<String> = withContext(Dispatchers.IO) {
         return@withContext try {
@@ -317,7 +379,7 @@ class ApiRepository(private val context: Context) {
         return try {
             val profileId = requireSelectedProfileId()
             val response = ApiClient.nextDnsApi.getPageSettings(profileId, page)
-            response.getAsJsonArray("data")
+            response.body()?.getAsJsonArray("data")
         } catch (e: Exception) { null }
     }
 

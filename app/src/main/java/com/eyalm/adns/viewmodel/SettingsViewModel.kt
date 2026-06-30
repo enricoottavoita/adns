@@ -28,22 +28,45 @@ import androidx.lifecycle.viewModelScope
 import com.eyalm.adns.R
 import com.eyalm.adns.data.ApiRepository
 import com.eyalm.adns.data.DnsRepository
-import com.eyalm.adns.data.ListIcon
-import com.eyalm.adns.data.ListItem
-import com.eyalm.adns.data.ListSetting
-import com.eyalm.adns.data.ListSource
 import com.eyalm.adns.data.Locales
-import com.eyalm.adns.data.ToggleSetting
 import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.toHexId
+import com.eyalm.adns.data.nextdns.model.ListIcon
+import com.eyalm.adns.data.nextdns.resources.NextDnsResourceItem
+import com.eyalm.adns.data.nextdns.resources.NextDnsResourceSource
+import com.eyalm.adns.data.nextdns.resources.NextDnsResourceSpec
+import com.eyalm.adns.data.nextdns.settings.BooleanSettingSpec
+import com.eyalm.adns.data.nextdns.settings.IntSelectSettingSpec
+import com.eyalm.adns.data.nextdns.settings.ProfileSettingSpec
+import com.eyalm.adns.data.nextdns.settings.SettingId
+import com.eyalm.adns.data.nextdns.settings.SettingsPageSpec
+import com.eyalm.adns.data.nextdns.settings.StringSelectSettingSpec
+import com.eyalm.adns.data.nextdns.settings.valueAt
+import com.eyalm.adns.domain.nextdns.ApiResult
+import com.google.gson.Gson
+import com.google.gson.JsonElement
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+data class ScalarSettingsUiState(
+    val page: String? = null,
+    val loading: Boolean = false,
+    val loaded: Boolean = false,
+    val values: Map<SettingId, JsonElement> = emptyMap(),
+    val saving: Set<SettingId> = emptySet(),
+    val pendingConfirmation: PendingSettingChange? = null,
+)
+
+data class PendingSettingChange(
+    val spec: ProfileSettingSpec<*>,
+    val encodedValue: Any,
+)
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -195,18 +218,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         refreshProvider()
     }
 
-    // new generic methods
+    private val _scalarSettings = MutableStateFlow(ScalarSettingsUiState())
+    val scalarSettings: StateFlow<ScalarSettingsUiState> = _scalarSettings.asStateFlow()
+
+    private val _listLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _listLoading.asStateFlow()
 
 
-    // e.g. "nrd" or "logs.drop.ip"
-    private val _pageToggles = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-    val pageToggles: StateFlow<Map<String, Boolean>> = _pageToggles.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-
-    var currentListSetting: ListSetting? = null
+    var currentListSetting: NextDnsResourceSpec? = null
         private set
 
     // Which page to return to when pressing back from the list screen
@@ -215,70 +234,126 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _activeListIds = MutableStateFlow<Set<String>>(emptySet())
     val activeListIds: StateFlow<Set<String>> = _activeListIds.asStateFlow()
 
-    private val _availableItems = MutableStateFlow<List<ListItem>>(emptyList())
-    val availableItems: StateFlow<List<ListItem>> = _availableItems.asStateFlow()
-
-    private val _loadedPageId = MutableStateFlow<String>("")
-    val loadedPageId: StateFlow<String> = _loadedPageId.asStateFlow()
+    private val _availableItems = MutableStateFlow<List<NextDnsResourceItem>>(emptyList())
+    val availableItems: StateFlow<List<NextDnsResourceItem>> = _availableItems.asStateFlow()
 
     private val _errorMessage = MutableSharedFlow<String>()
     val errorMessage = _errorMessage.asSharedFlow()
 
-    fun loadPageSettings(page: String, toggles: List<ToggleSetting>) {
+    fun loadScalarSettings(pageSpec: SettingsPageSpec) {
+        val current = _scalarSettings.value
+        if (current.page == pageSpec.page && (current.loading || current.loaded)) return
 
-        if (_loadedPageId.value == page && _pageToggles.value.isNotEmpty()) {
-            return
-        }
-
-        _loadedPageId.value = ""
-        _pageToggles.value = emptyMap()
-
+        _scalarSettings.value = ScalarSettingsUiState(page = pageSpec.page, loading = true)
         viewModelScope.launch {
-            _isLoading.value = true
-            val data = apiRepository.getPageSettings(page)
-            if (data != null) {
-                val states = mutableMapOf<String, Boolean>()
-                for (toggle in toggles) {
-                    val value = toggle.readFrom(data)
-                    if (value != null) {
-                        states[toggle.stateKey] = value
+            when (val result = apiRepository.getScalarSettings(pageSpec.page)) {
+                is ApiResult.Success -> {
+                    val values = buildMap {
+                        pageSpec.settings.forEach { spec ->
+                            val raw = result.value.valueAt(spec.api.path)
+                            if (raw != null && spec.isValid(raw)) {
+                                put(spec.id, raw)
+                            }
+                        }
                     }
+                    _scalarSettings.value = ScalarSettingsUiState(
+                        page = pageSpec.page,
+                        loaded = true,
+                        values = values,
+                    )
                 }
-                _pageToggles.value = states
-                _loadedPageId.value = page
-            } else {
-                _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_page_data_check_your_network_connection_and_try_again_later))
+
+                else -> {
+                    _scalarSettings.value = ScalarSettingsUiState(page = pageSpec.page)
+                    _errorMessage.emit(
+                        getApplication<Application>().getString(
+                            R.string.failed_to_load_page_data_check_your_network_connection_and_try_again_later
+                        )
+                    )
+                }
             }
-            _isLoading.value = false
         }
     }
 
-    fun updateToggle(page: String, toggle: ToggleSetting, newValue: Boolean) {
+    fun changeBooleanSetting(spec: BooleanSettingSpec, value: Boolean) {
+        requestSettingChange(spec, spec.encode(value))
+    }
 
-        _pageToggles.value = _pageToggles.value.toMutableMap().apply {
-            this[toggle.stateKey] = newValue
+    fun changeIntSetting(spec: IntSelectSettingSpec, value: Int) {
+        requestSettingChange(spec, spec.encode(value))
+    }
+
+    fun changeStringSetting(spec: StringSelectSettingSpec, value: String) {
+        requestSettingChange(spec, spec.encode(value))
+    }
+
+    fun confirmPendingSettingChange() {
+        val pending = _scalarSettings.value.pendingConfirmation ?: return
+        _scalarSettings.value = _scalarSettings.value.copy(pendingConfirmation = null)
+        persistSettingChange(pending.spec, pending.encodedValue)
+    }
+
+    fun cancelPendingSettingChange() {
+        _scalarSettings.value = _scalarSettings.value.copy(pendingConfirmation = null)
+    }
+
+    private fun requestSettingChange(spec: ProfileSettingSpec<*>, encodedValue: Any) {
+        val state = _scalarSettings.value
+        if (spec.id in state.saving || state.pendingConfirmation != null) return
+        if (state.values[spec.id] == Gson().toJsonTree(encodedValue)) return
+
+        if (spec.confirmation != null) {
+            _scalarSettings.value = state.copy(
+                pendingConfirmation = PendingSettingChange(spec, encodedValue)
+            )
+        } else {
+            persistSettingChange(spec, encodedValue)
         }
+    }
+
+    private fun persistSettingChange(spec: ProfileSettingSpec<*>, encodedValue: Any) {
+        val previousValue = _scalarSettings.value.values[spec.id] ?: return
+        val encodedJson = Gson().toJsonTree(encodedValue)
+
+        _scalarSettings.value = _scalarSettings.value.copy(
+            values = _scalarSettings.value.values + (spec.id to encodedJson),
+            saving = _scalarSettings.value.saving + spec.id,
+        )
+
         viewModelScope.launch {
-            val payload = toggle.buildPatchPayload(newValue)
-            val success = apiRepository.patchPageSettings(page, payload)
-            if (!success) {
-                _pageToggles.value = _pageToggles.value.toMutableMap().apply {
-                    this[toggle.stateKey] = !newValue
-                }
-                _errorMessage.emit(getApplication<Application>().getString(R.string.network_error_please_try_again))
+            val result = apiRepository.patchScalarSetting(spec.api, encodedValue)
+            val current = _scalarSettings.value
+            if (current.page != spec.api.page) return@launch
+
+            if (result is ApiResult.Success) {
+                _scalarSettings.value = current.copy(saving = current.saving - spec.id)
+            } else {
+                _scalarSettings.value = current.copy(
+                    values = current.values + (spec.id to previousValue),
+                    saving = current.saving - spec.id,
+                )
+                _errorMessage.emit(
+                    getApplication<Application>().getString(R.string.network_error_please_try_again)
+                )
             }
         }
     }
 
+    private fun ProfileSettingSpec<*>.isValid(raw: JsonElement): Boolean = when (this) {
+        is BooleanSettingSpec -> decode(raw) != null
+        is IntSelectSettingSpec -> decode(raw) != null
+        is StringSelectSettingSpec -> decode(raw) != null
+    }
 
-    fun openListScreen(listSetting: ListSetting) {
+
+    fun openListScreen(listSetting: NextDnsResourceSpec) {
 
         currentListSetting = listSetting
 
         listParentPage = when (listSetting.parentPage) {
-            ListSetting.Page.SECURITY -> Page.SECURITY
-            ListSetting.Page.PRIVACY -> Page.PRIVACY
-            ListSetting.Page.PARENTAL_CONTROL -> Page.PARENTAL_CONTROL
+            NextDnsResourceSpec.ParentPage.SECURITY -> Page.SECURITY
+            NextDnsResourceSpec.ParentPage.PRIVACY -> Page.PRIVACY
+            NextDnsResourceSpec.ParentPage.PARENTAL_CONTROL -> Page.PARENTAL_CONTROL
             else -> Page.MAIN
         }
         _activeListIds.value = emptySet()
@@ -290,22 +365,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun getListParentPage(): Page = listParentPage
 
-    private fun loadListData(listSetting: ListSetting) {
+    private fun loadListData(listSetting: NextDnsResourceSpec) {
         viewModelScope.launch {
             try {
-                _isLoading.value = true
+                _listLoading.value = true
                 if (listSetting.allowsCustomInput) {
                     val dataArray = apiRepository.getCustomListItems(listSetting.apiPage)
 
                     val activeIds = mutableSetOf<String>()
-                    val items = mutableListOf<ListItem>()
+                    val items = mutableListOf<NextDnsResourceItem>()
 
                     dataArray?.forEach { element ->
                         val obj = element.asJsonObject
                         val id = obj.get("id").asString
                         val isActive = if (obj.has("active")) obj.get("active").asBoolean else true
 
-                        items.add(ListItem(id = id, name = "*.$id"))
+                        items.add(NextDnsResourceItem(id = id, name = "*.$id"))
                         if (isActive) activeIds.add(id)
                     }
 
@@ -314,24 +389,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 } else {
 
                     val activeIds = apiRepository.getActiveListItems(
-                        listSetting.apiPage, listSetting.apiFeat
+                        listSetting.apiPage, listSetting.apiFeature
                     )
                     _activeListIds.value = activeIds.toSet()
 
-                    val items: List<ListItem> = when (listSetting.source) {
-                        ListSource.SERVER -> loadServerList(listSetting)
-                        ListSource.LOCALE -> loadLocaleList(listSetting)
+                    val items: List<NextDnsResourceItem> = when (listSetting.source) {
+                        NextDnsResourceSource.SERVER -> loadServerList(listSetting)
+                        NextDnsResourceSource.LOCALE -> loadLocaleList(listSetting)
                     }
                     _availableItems.value = items
                     if (items.isEmpty()) {
                         _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_list_data))
                     }
                 }
-                _isLoading.value = false
+                _listLoading.value = false
 
             } catch (e: Exception) {
                 _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_list_data_check_your_network_connection_and_try_again_later))
-                _isLoading.value = false
+                _listLoading.value = false
             }
         }
     }
@@ -347,9 +422,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
 
-    private suspend fun loadServerList(listSetting: ListSetting): List<ListItem> {
+    private suspend fun loadServerList(listSetting: NextDnsResourceSpec): List<NextDnsResourceItem> {
         val catalog = apiRepository.getAvailableCatalog(
-            listSetting.apiPage, listSetting.apiFeat
+            listSetting.apiPage, listSetting.apiFeature
         ) ?: return emptyList()
 
         val dataArray = catalog.getAsJsonArray("data") ?: return emptyList()
@@ -359,13 +434,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             Log.d("loadServerList", "obj: $obj")
             val id = obj.get("id").asString
 
-            when (listSetting.apiFeat) {
-                "tlds" -> ListItem(
+            when (listSetting.apiFeature) {
+                "tlds" -> NextDnsResourceItem(
                     id = id,
                     name = ".$id",
                 )
                 "blocklists" -> {
-                    ListItem(
+                    NextDnsResourceItem(
                         id = id,
                         name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: getApplication<Application>().getString(R.string.nextdns_ads_trackers_blocklist) ,
                         description = obj.get("description")?.takeIf { !it.isJsonNull }?.asString ?: getApplication<Application>().getString(R.string.a_comprehensive_blocklist_to_block_ads_trackers_in_all_countries_this_is_the_recommended_starter),
@@ -382,13 +457,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     val prettyName = Locales.getString("parentalControl", "services", "services", id)
                         .takeIf { it.isNotEmpty() } ?: id
 
-                    ListItem(
+                    NextDnsResourceItem(
                         id = id,
                         name = prettyName,
                         icon = ListIcon.Url("https://favicons.nextdns.io/${domain.toHexId()}@3x.png")
                     )
                 }
-                else -> ListItem(
+                else -> NextDnsResourceItem(
                     id = id,
                     name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: id,
                     description = obj.get("description")?.takeIf { !it.isJsonNull }?.asString,
@@ -398,12 +473,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun loadLocaleList(listSetting: ListSetting): List<ListItem> {
+    private fun loadLocaleList(listSetting: NextDnsResourceSpec): List<NextDnsResourceItem> {
         val map = Locales.getMap(*listSetting.localePath.toTypedArray())
             ?: return emptyList()
 
         return map.map { (key, value) ->
-            when (listSetting.apiFeat) {
+            when (listSetting.apiFeature) {
                 "natives" -> {
                     val nameVal = if (value is Map<*, *>) (value["name"] as? String) else null
                     val devicesVal = if (value is Map<*, *>) (value["devices"] as? String) else null
@@ -413,7 +488,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         "sonos" -> androidx.compose.material.icons.Icons.Default.Speaker
                         else -> androidx.compose.material.icons.Icons.Default.Devices
                     }
-                    ListItem(
+                    NextDnsResourceItem(
                         id = key,
                         name = nameVal ?: key,
                         description = devicesVal,
@@ -435,14 +510,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         "music" -> androidx.compose.material.icons.Icons.Default.MusicNote
                         else -> androidx.compose.material.icons.Icons.Default.Folder
                     }
-                    ListItem(
+                    NextDnsResourceItem(
                         id = key,
                         name = nameVal ?: key,
                         description = descVal,
                         icon = ListIcon.Vector(vector)
                     )
                 }
-                else -> ListItem(
+                else -> NextDnsResourceItem(
                     id = key,
                     name = (value as? String) ?: key,
                     icon = ListIcon.None
@@ -465,9 +540,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 apiRepository.patchCustomListItem(listSetting.apiPage, itemId, newState)
             } else {
                 if (isCurrentlyActive) {
-                    apiRepository.removeListItem(listSetting.apiPage, listSetting.apiFeat, itemId)
+                    apiRepository.removeListItem(listSetting.apiPage, listSetting.apiFeature, itemId)
                 } else {
-                    apiRepository.addListItem(listSetting.apiPage, listSetting.apiFeat, itemId)
+                    apiRepository.addListItem(listSetting.apiPage, listSetting.apiFeature, itemId)
                 }
             }
             if (!success) {
@@ -483,7 +558,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
         val cleanDomain = domain.trim().lowercase()
 
-        val newItem = ListItem(id = cleanDomain, name = "*.$cleanDomain")
+        val newItem = NextDnsResourceItem(id = cleanDomain, name = "*.$cleanDomain")
         _availableItems.value = listOf(newItem) + _availableItems.value
         _activeListIds.value += cleanDomain
 
@@ -509,7 +584,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val success = apiRepository.removeCustomListItem(listSetting.apiPage, domain)
             if (!success) {
-                _availableItems.value = listOf(ListItem(id = domain, name = domain)) + _availableItems.value
+                _availableItems.value = listOf(NextDnsResourceItem(id = domain, name = domain)) + _availableItems.value
                 if (wasActive) _activeListIds.value += domain
                 _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_delete, domain))
             }

@@ -21,10 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.R
-import com.eyalm.adns.data.ParentalControlSettings
-import com.eyalm.adns.data.PrivacySettings
-import com.eyalm.adns.data.SecuritySettings
-import com.eyalm.adns.data.SettingsPageSettings
+import com.eyalm.adns.data.nextdns.resources.NextDnsResourceRegistry
+import com.eyalm.adns.data.nextdns.settings.NextDnsSettingRegistry
 import com.eyalm.adns.ui.screens.settings.AccountSettingsScreen
 import com.eyalm.adns.ui.screens.settings.GenericCategoryScreen
 import com.eyalm.adns.ui.screens.settings.GenericListScreen
@@ -119,9 +117,8 @@ fun SettingsTabRouter(
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 GenericCategoryScreen(
                     title = stringResource(R.string.security),
-                    apiPage = "security",
-                    toggles = SecuritySettings.toggles,
-                    lists = SecuritySettings.lists,
+                    settingsPage = NextDnsSettingRegistry.security,
+                    lists = NextDnsResourceRegistry.security,
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
             }
@@ -130,9 +127,8 @@ fun SettingsTabRouter(
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 GenericCategoryScreen(
                     title = stringResource(R.string.privacy),
-                    apiPage = "privacy",
-                    toggles = PrivacySettings.toggles,
-                    lists = PrivacySettings.lists,
+                    settingsPage = NextDnsSettingRegistry.privacy,
+                    lists = NextDnsResourceRegistry.privacy,
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
             }
@@ -141,9 +137,8 @@ fun SettingsTabRouter(
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 GenericCategoryScreen(
                     title = stringResource(R.string.parental_control),
-                    apiPage = "parentalcontrol",
-                    toggles = ParentalControlSettings.toggles,
-                    lists = ParentalControlSettings.lists,
+                    settingsPage = NextDnsSettingRegistry.parentalControl,
+                    lists = NextDnsResourceRegistry.parentalControl,
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
             }
@@ -152,9 +147,7 @@ fun SettingsTabRouter(
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 GenericCategoryScreen(
                     title = stringResource(R.string.settings),
-                    apiPage = "settings",
-                    toggles = SettingsPageSettings.toggles,
-                    // We omit the 'lists' parameter here because it defaults to emptyList()
+                    settingsPage = NextDnsSettingRegistry.settings,
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
             }

@@ -13,7 +13,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eyalm.adns.data.ListCard
-import com.eyalm.adns.data.ListIcon
+import com.eyalm.adns.data.nextdns.model.ListIcon
 import com.eyalm.adns.data.PercentCard
 import com.eyalm.adns.data.StatRow
 import com.eyalm.adns.data.fmtPercent

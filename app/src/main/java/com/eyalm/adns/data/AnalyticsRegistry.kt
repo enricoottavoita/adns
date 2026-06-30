@@ -1,5 +1,7 @@
 package com.eyalm.adns.data
 
+import com.eyalm.adns.data.nextdns.model.ListIcon
+
 // [icon] title / subtitle ........ value
 data class StatRow(
     val id: String,

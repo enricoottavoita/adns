@@ -70,7 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.ListCard
-import com.eyalm.adns.data.ListIcon
+import com.eyalm.adns.data.nextdns.model.ListIcon
 import com.eyalm.adns.data.PercentCard
 import com.eyalm.adns.data.StatsRegistry
 import com.eyalm.adns.data.network.NextDnsDomainData

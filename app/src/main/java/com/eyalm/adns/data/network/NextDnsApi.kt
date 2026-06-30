@@ -50,7 +50,7 @@ interface NextDnsApi {
     suspend fun getPageSettings(
         @Path("profileId") profileId: String,
         @Path("page") page: String
-    ): JsonObject
+    ): Response<JsonObject>
 
 
     @PATCH("profiles/{profileId}/{page}")
@@ -58,7 +58,7 @@ interface NextDnsApi {
         @Path("profileId") profileId: String,
         @Path("page") page: String,
         @Body payload: Map<String, @JvmSuppressWildcards Any>
-    ): Response<Unit>
+    ): Response<JsonObject>
 
     // get active list items for a feature
     @GET("profiles/{profileId}/{page}/{feat}")

@@ -1,8 +1,6 @@
 package com.eyalm.adns.ui.screens.settings
-import com.eyalm.adns.R
-import androidx.compose.ui.res.stringResource
 
-
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,60 +12,143 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.eyalm.adns.data.ListSetting
+import com.eyalm.adns.R
 import com.eyalm.adns.data.Locales
-import com.eyalm.adns.data.ToggleSetting
+import com.eyalm.adns.data.nextdns.model.ListIcon
+import com.eyalm.adns.data.nextdns.model.countryFlag
+import com.eyalm.adns.data.nextdns.resources.NextDnsResourceSpec
+import com.eyalm.adns.data.nextdns.settings.BooleanSettingSpec
+import com.eyalm.adns.data.nextdns.settings.IntSelectSettingSpec
+import com.eyalm.adns.data.nextdns.settings.LocaleBinding
+import com.eyalm.adns.data.nextdns.settings.ProfileSettingSpec
+import com.eyalm.adns.data.nextdns.settings.SelectOption
+import com.eyalm.adns.data.nextdns.settings.SettingId
+import com.eyalm.adns.data.nextdns.settings.SettingsPageSpec
+import com.eyalm.adns.data.nextdns.settings.StringSelectSettingSpec
 import com.eyalm.adns.ui.components.ExpressiveListItem
+import com.eyalm.adns.ui.components.ListIconView
 import com.eyalm.adns.ui.theme.pageTitle
 import com.eyalm.adns.ui.theme.settingsLabel
 import com.eyalm.adns.viewmodel.SettingsViewModel
+import com.google.gson.JsonElement
+
+private sealed interface SettingSelector {
+    data class IntSelector(val spec: IntSelectSettingSpec) : SettingSelector
+    data class StringSelector(val spec: StringSelectSettingSpec) : SettingSelector
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GenericCategoryScreen(
     title: String,
-    apiPage: String,
-    toggles: List<ToggleSetting>,
-    lists: List<ListSetting> = emptyList(),
-    onBack: () -> Unit
+    settingsPage: SettingsPageSpec,
+    lists: List<NextDnsResourceSpec> = emptyList(),
+    onBack: () -> Unit,
 ) {
     val viewModel: SettingsViewModel = viewModel()
-    val toggleStates by viewModel.pageToggles.collectAsState()
+    val scalarSettings by viewModel.scalarSettings.collectAsState()
     val context = LocalContext.current
-    val loadedPageId by viewModel.loadedPageId.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var selector by remember(settingsPage.page) { mutableStateOf<SettingSelector?>(null) }
 
-    LaunchedEffect(apiPage) {
-        viewModel.loadPageSettings(apiPage, toggles)
+    LaunchedEffect(settingsPage.page) {
+        viewModel.loadScalarSettings(settingsPage)
     }
 
     LaunchedEffect(Unit) {
         viewModel.errorMessage.collect { message ->
             snackbarHostState.showSnackbar(message)
         }
+    }
+
+    when (val activeSelector = selector) {
+        is SettingSelector.IntSelector -> {
+            val spec = activeSelector.spec
+            SettingSelectionDialog(
+                title = spec.locale.title(context),
+                options = spec.options,
+                current = spec.options.find {
+                    it.value == scalarSettings.values[spec.id]?.let(spec::decode)
+                },
+                onSelect = {
+                    selector = null
+                    viewModel.changeIntSetting(spec, it)
+                },
+                onDismiss = { selector = null },
+            )
+        }
+
+        is SettingSelector.StringSelector -> {
+            val spec = activeSelector.spec
+            SettingSelectionDialog(
+                title = spec.locale.title(context),
+                options = spec.options,
+                current = spec.options.find {
+                    it.value == scalarSettings.values[spec.id]?.let(spec::decode)
+                },
+                onSelect = {
+                    selector = null
+                    viewModel.changeStringSetting(spec, it)
+                },
+                onDismiss = { selector = null },
+            )
+        }
+
+        null -> Unit
+    }
+
+    scalarSettings.pendingConfirmation?.let { pending ->
+        val confirmation = pending.spec.confirmation ?: return@let
+        AlertDialog(
+            onDismissRequest = viewModel::cancelPendingSettingChange,
+            title = {
+                Text(Locales.getString(*confirmation.titlePath.toTypedArray()))
+            },
+            text = {
+                Text(Locales.getString(*confirmation.bodyPath.toTypedArray()))
+            },
+            confirmButton = {
+                Button(onClick = viewModel::confirmPendingSettingChange) {
+                    Text(stringResource(R.string.change))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelPendingSettingChange) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
     }
 
     Scaffold(
@@ -81,70 +162,28 @@ fun GenericCategoryScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
-        val isDataReady = loadedPageId == apiPage && toggleStates.isNotEmpty()
-
-        if (!isDataReady) {
+        val isLoading = scalarSettings.page != settingsPage.page || scalarSettings.loading
+        if (isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 CircularWavyProgressIndicator(modifier = Modifier.size(64.dp))
             }
         } else {
-            val toggleStatesMap = toggleStates
-            val (multiItemGroups, singleItemGroups) = remember(toggles) {
-                toggles.groupBy { it.apiPath.first() }
-                    .toList()
-                    .partition { it.second.size > 1 }
-            }
-
-            @Composable
-            fun ToggleItem(toggle: ToggleSetting,
-                           isFirst: Boolean,
-                           isLast: Boolean
-            ) {
-                val isSelected = toggleStatesMap[toggle.stateKey] == true
-                ExpressiveListItem(
-                    title = toggle.title(context),
-                    description = toggle.description(context),
-                    isSelected = isSelected,
-                    onClick = {
-                        viewModel.updateToggle(apiPage, toggle, !isSelected)
-                    },
-                    interactiveItem = { isSelected, onClick ->
-                        Switch(
-                            checked = isSelected,
-                            onCheckedChange = { onClick() },
-                        )
-                    },
-                    isFirst = isFirst,
-                    isLast = isLast
-                )
-                /**
-                SwitchSettingCard(
-                    title = toggle.title(),
-                    description = toggle.description(),
-                    checked = toggleStatesMap[toggle.stateKey] == true,
-                    onCheckedChange = { newValue ->
-                        viewModel.updateToggle(apiPage, toggle, newValue)
-                    }
-                )
-                **/
-            }
-
             LazyColumn(
                 modifier = Modifier
                     .padding(innerPadding)
                     .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 item {
                     Text(
@@ -159,125 +198,248 @@ fun GenericCategoryScreen(
                     item {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
                                 text = stringResource(R.string.lists),
                                 style = MaterialTheme.typography.settingsLabel,
                                 color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+                                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
                             )
-                            lists.forEach { listSetting ->
+                            lists.forEachIndexed { index, listSetting ->
                                 ExpressiveListItem(
                                     title = listSetting.title(context),
                                     description = listSetting.description(context),
                                     onClick = { viewModel.openListScreen(listSetting) },
                                     secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    isLast = lists.last() == listSetting,
-                                    isFirst = lists.first() == listSetting
+                                    isFirst = index == 0,
+                                    isLast = index == lists.lastIndex,
                                 )
                             }
                         }
                     }
                 }
 
+                val allGroups = settingsPage.settings.groupBy { it.api.path.first() }
+                val visibleSettings = settingsPage.settings.filter { spec ->
+                    spec.visibleWhen?.invoke(scalarSettings.values) ?: true
+                }
+                val visibleGroups = visibleSettings.groupBy { it.api.path.first() }
+                val multiItemGroupKeys = allGroups
+                    .filterValues { it.size > 1 }
+                    .keys
 
-                if (multiItemGroups.isNotEmpty()) {
-                    multiItemGroups.forEach { (groupKey, settings) ->
+                visibleGroups
+                    .filterKeys { it in multiItemGroupKeys }
+                    .forEach { (groupKey, settings) ->
                         item {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = Locales.getString(apiPage, groupKey, "name").uppercase(),
-                                    style = MaterialTheme.typography.settingsLabel,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-                                )
-                                settings.forEach { toggle -> ToggleItem(toggle, settings.first() == toggle, settings.last() == toggle) }
-                            }
-                        }
-                    }
-                    if (singleItemGroups.isNotEmpty()) {
-                        item {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.other_preferences),
-                                    style = MaterialTheme.typography.settingsLabel,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-                                )
-                                val map = singleItemGroups.flatMap { it.second }
-                                map.forEach { toggle ->
-                                    ToggleItem(toggle, map.first() == toggle, map.last() == toggle)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    item {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.preferences),
-                                style = MaterialTheme.typography.settingsLabel,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+                            ScalarSettingsGroup(
+                                title = groupTitle(settingsPage.page, groupKey),
+                                settings = settings,
+                                values = scalarSettings.values,
+                                saving = scalarSettings.saving,
+                                onBooleanChange = viewModel::changeBooleanSetting,
+                                onIntSelect = { selector = SettingSelector.IntSelector(it) },
+                                onStringSelect = { selector = SettingSelector.StringSelector(it) },
                             )
-                            toggles.forEach { toggle ->
-                                ToggleItem(toggle, toggles.first() == toggle, toggles.last() == toggle)
-                            }
                         }
                     }
+
+                val singleItemSettings = visibleGroups
+                    .filterKeys { it !in multiItemGroupKeys }
+                    .values
+                    .flatten()
+                if (singleItemSettings.isNotEmpty()) {
+                    item {
+                        ScalarSettingsGroup(
+                            title = stringResource(
+                                if (multiItemGroupKeys.isEmpty()) R.string.preferences
+                                else R.string.other_preferences
+                            ),
+                            settings = singleItemSettings,
+                            values = scalarSettings.values,
+                            saving = scalarSettings.saving,
+                            onBooleanChange = viewModel::changeBooleanSetting,
+                            onIntSelect = { selector = SettingSelector.IntSelector(it) },
+                            onStringSelect = { selector = SettingSelector.StringSelector(it) },
+                        )
+                    }
                 }
-
-
             }
-
-
-
-            /**
-
-
-            if (multiItemGroups.isNotEmpty()) {
-            multiItemGroups.forEach { (groupKey, settings) ->
-            item(key = groupKey) {
-            Text(
-            text = Locales.getString(apiPage, groupKey, "name"),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-            )
-            }
-            items(settings, key = { it.stateKey }) { toggle -> ToggleItem(toggle) }
-            }
-            if (singleItemGroups.isNotEmpty()) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            items(
-            singleItemGroups.flatMap { it.second },
-            key = { it.stateKey }) { toggle ->
-            ToggleItem(toggle)
-            }
-            }
-            } else {
-            items(toggles, key = { it.stateKey }) { toggle ->
-            ToggleItem(toggle)
-            }
-            }
-
-
-
-
-
-            item { Spacer(modifier = Modifier.height(32.dp)) }
-            }
-             */
         }
     }
 }
+
+@Composable
+private fun ScalarSettingsGroup(
+    title: String,
+    settings: List<ProfileSettingSpec<*>>,
+    values: Map<SettingId, JsonElement>,
+    saving: Set<SettingId>,
+    onBooleanChange: (BooleanSettingSpec, Boolean) -> Unit,
+    onIntSelect: (IntSelectSettingSpec) -> Unit,
+    onStringSelect: (StringSelectSettingSpec) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = title.uppercase(),
+            style = MaterialTheme.typography.settingsLabel,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
+        )
+        settings.forEachIndexed { index, spec ->
+            ScalarSettingRow(
+                spec = spec,
+                rawValue = values[spec.id],
+                saving = spec.id in saving,
+                isFirst = index == 0,
+                isLast = index == settings.lastIndex,
+                onBooleanChange = onBooleanChange,
+                onIntSelect = onIntSelect,
+                onStringSelect = onStringSelect,
+            )
+        }
+    }
+}
+
+private fun groupTitle(page: String, group: String): String = when {
+    page == "settings" && group == "blockPage" ->
+        Locales.getString("settings", "blockpage", "name")
+
+    else -> Locales.getString(page, group, "name")
+}
+
+@Composable
+private fun ScalarSettingRow(
+    spec: ProfileSettingSpec<*>,
+    rawValue: JsonElement?,
+    saving: Boolean,
+    isFirst: Boolean,
+    isLast: Boolean,
+    onBooleanChange: (BooleanSettingSpec, Boolean) -> Unit,
+    onIntSelect: (IntSelectSettingSpec) -> Unit,
+    onStringSelect: (StringSelectSettingSpec) -> Unit,
+) {
+    when (spec) {
+        is BooleanSettingSpec -> {
+            val checked = rawValue?.let(spec::decode) ?: return
+            ExpressiveListItem(
+                title = spec.locale.title(LocalContext.current),
+                description = spec.locale.description(LocalContext.current),
+                isSelected = checked,
+                onClick = {
+                    if (!saving) onBooleanChange(spec, !checked)
+                },
+                interactiveItem = { _, _ ->
+                    Switch(
+                        checked = checked,
+                        enabled = !saving,
+                        onCheckedChange = { onBooleanChange(spec, it) },
+                    )
+                },
+                isFirst = isFirst,
+                isLast = isLast,
+            )
+        }
+
+        is IntSelectSettingSpec -> {
+            val value = rawValue?.let(spec::decode) ?: return
+            ExpressiveListItem(
+                title = spec.locale.title(LocalContext.current),
+                description = spec.options.firstOrNull { it.value == value }
+                    ?.label(LocalContext.current)
+                    ?: value.toString(),
+                onClick = { if (!saving) onIntSelect(spec) },
+                secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                isFirst = isFirst,
+                isLast = isLast,
+            )
+        }
+
+        is StringSelectSettingSpec -> {
+            val value = rawValue?.let(spec::decode) ?: return
+            ExpressiveListItem(
+                title = spec.locale.title(LocalContext.current),
+                description = spec.options.firstOrNull { it.value == value }
+                    ?.label(LocalContext.current)
+                    ?: value,
+                onClick = { if (!saving) onStringSelect(spec) },
+                secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                isFirst = isFirst,
+                isLast = isLast,
+            )
+        }
+    }
+}
+
+@Composable
+private fun <T : Any> SettingSelectionDialog(
+    title: String,
+    options: List<SelectOption<T>>,
+    current: SelectOption<T>?,
+    onSelect: (T) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    var selected by remember(current) { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.8f),
+        containerColor = MaterialTheme.colorScheme.background,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                options.forEach { option ->
+                    ExpressiveListItem(
+                        title = option.label(context),
+                        description = option.descriptionPath?.let { Locales.getString(*it.toTypedArray()) },
+                        onClick = { selected = option },
+                        isSelected = selected == option,
+                        altLeadingContent = option.iconKey
+                            ?.let(::locationFlagIcon)
+                            ?.let { icon -> { _ -> ListIconView(icon) } },
+                        interactiveItem = { isSelected, _ ->
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { selected = option }
+                            )
+                        },
+                        isFirst = option == options.first(),
+                        isLast = option == options.last(),
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { selected?.value?.let(onSelect) },
+                enabled = selected != null
+            ) {
+                Text(stringResource(R.string.confirm))
+            }
+        }
+    )
+}
+
+private fun LocaleBinding.title(context: Context): String =
+    titleRes?.let(context::getString)
+        ?: Locales.getString(*titlePath.toTypedArray())
+
+private fun LocaleBinding.description(context: Context): String? =
+    descriptionRes?.let(context::getString)
+        ?: descriptionPath?.let { Locales.getString(*it.toTypedArray()) }
+
+private fun <T : Any> SelectOption<T>.label(context: Context): String =
+    Locales.getString(*labelPath.toTypedArray())
+
+private fun locationFlagIcon(code: String): ListIcon =
+    ListIcon.Text(countryFlag(code))

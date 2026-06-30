@@ -57,7 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.R
-import com.eyalm.adns.data.ListIcon
+import com.eyalm.adns.data.nextdns.model.ListIcon
 import com.eyalm.adns.data.network.toHexId
 import com.eyalm.adns.ui.components.ExpressiveIcon
 import com.eyalm.adns.ui.components.ExpressiveListItem

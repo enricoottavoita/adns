@@ -59,6 +59,7 @@
     <string name="disable_blocker">Disable Blocker</string>
     <string name="dismiss">Dismiss</string>
     <string name="done">Done!</string>
+    <string name="change">Change</string>
     <string name="download">Download</string>
     <string name="drop_domains_from_logs">Drop Domains from Logs</string>
     <string name="drop_ip_from_logs">Drop IP from Logs</string>

@@ -1,5 +1,8 @@
 package com.eyalm.adns.data
 
+import com.eyalm.adns.data.nextdns.model.ListIcon
+import com.eyalm.adns.data.nextdns.model.countryFlag
+
 import android.icu.text.NumberFormat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Devices
@@ -14,11 +17,6 @@ private fun fmt(n: Int): String = NumberFormat.getNumberInstance(Locale.US).form
 private fun JsonArray.objs(): List<JsonObject> = this.map { it.asJsonObject }
 private fun JsonObject.str(k: String): String? = get(k)?.takeIf { !it.isJsonNull }?.asString
 private fun JsonObject.int(k: String): Int = get(k)?.takeIf { !it.isJsonNull }?.asInt ?: 0
-
-fun countryFlag(code: String): String =
-    code.uppercase().filter { it in 'A'..'Z' }
-        .map { String(Character.toChars(0x1F1E6 + (it - 'A'))) }
-        .joinToString("")
 
 fun fmtPercent(p: Float): String =
     if (p % 1f == 0f) "${p.toInt()}%" else String.format(Locale.US, "%.2f%%", p)
