@@ -14,15 +14,19 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.R
 import com.eyalm.adns.data.nextdns.resources.NextDnsResourceRegistry
 import com.eyalm.adns.data.nextdns.settings.NextDnsSettingRegistry
+import com.eyalm.adns.ui.screens.settings.AccessSection
 import com.eyalm.adns.ui.screens.settings.AccountSettingsScreen
 import com.eyalm.adns.ui.screens.settings.GenericCategoryScreen
 import com.eyalm.adns.ui.screens.settings.GenericListScreen
@@ -30,6 +34,8 @@ import com.eyalm.adns.ui.screens.settings.LanguageScreen
 import com.eyalm.adns.ui.screens.settings.LogsScreen
 import com.eyalm.adns.ui.screens.settings.MainSettingsScreen
 import com.eyalm.adns.ui.screens.settings.ProvidersScreen
+import com.eyalm.adns.ui.screens.settings.RecreationSection
+import com.eyalm.adns.ui.screens.settings.RewritesSection
 import com.eyalm.adns.viewmodel.SettingsViewModel
 
 @Composable
@@ -139,6 +145,7 @@ fun SettingsTabRouter(
                     title = stringResource(R.string.parental_control),
                     settingsPage = NextDnsSettingRegistry.parentalControl,
                     lists = NextDnsResourceRegistry.parentalControl,
+                    extraContent = { RecreationSection() },
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
             }
@@ -148,6 +155,11 @@ fun SettingsTabRouter(
                 GenericCategoryScreen(
                     title = stringResource(R.string.settings),
                     settingsPage = NextDnsSettingRegistry.settings,
+                    extraContent = {
+                        RewritesSection()
+                        Spacer(Modifier.height(20.dp))
+                        AccessSection()
+                    },
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
             }

@@ -1,5 +1,10 @@
 package com.eyalm.adns.data.network
 
+import com.eyalm.adns.data.nextdns.rewrites.CreateRewriteRequest
+import com.eyalm.adns.data.nextdns.access.InviteAccessRequest
+import com.eyalm.adns.data.nextdns.access.UpdateAccessRoleRequest
+import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationItemRequest
+import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationScheduleRequest
 import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.Body
@@ -145,5 +150,70 @@ interface NextDnsApi {
         @Query("limit") limit: Int = 200
     ): NextDnsDevicesResponse
 
+    // rewrites
+
+    @GET("profiles/{profileId}/rewrites")
+    suspend fun getRewrites(
+        @Path("profileId") profileId: String,
+    ): Response<JsonObject>
+
+    @POST("profiles/{profileId}/rewrites")
+    suspend fun createRewrite(
+        @Path("profileId") profileId: String,
+        @Body request: CreateRewriteRequest,
+    ): Response<JsonObject>
+
+    @DELETE("profiles/{profileId}/rewrites/{rewriteId}")
+    suspend fun deleteRewrite(
+        @Path("profileId") profileId: String,
+        @Path("rewriteId") rewriteId: String,
+    ): Response<JsonObject>
+
+    // profile access
+
+    @GET("profiles/{profileId}/access")
+    suspend fun getAccess(
+        @Path("profileId") profileId: String,
+    ): Response<JsonObject>
+
+    @POST("profiles/{profileId}/access")
+    suspend fun inviteAccess(
+        @Path("profileId") profileId: String,
+        @Body request: InviteAccessRequest,
+    ): Response<JsonObject>
+
+    @PATCH("profiles/{profileId}/access/{email}")
+    suspend fun updateAccessRole(
+        @Path("profileId") profileId: String,
+        @Path("email") email: String,
+        @Body request: UpdateAccessRoleRequest,
+    ): Response<JsonObject>
+
+    @DELETE("profiles/{profileId}/access/{email}")
+    suspend fun deleteAccess(
+        @Path("profileId") profileId: String,
+        @Path("email") email: String,
+    ): Response<JsonObject>
+
+    // parental recreation
+
+    @GET("profiles/{profileId}/parentalControl")
+    suspend fun getParentalControl(
+        @Path("profileId") profileId: String,
+    ): Response<JsonObject>
+
+    @PATCH("profiles/{profileId}/parentalControl")
+    suspend fun updateRecreationSchedule(
+        @Path("profileId") profileId: String,
+        @Body request: UpdateRecreationScheduleRequest,
+    ): Response<JsonObject>
+
+    @PATCH("profiles/{profileId}/parentalControl/{collection}/{hexId}")
+    suspend fun updateRecreationItem(
+        @Path("profileId") profileId: String,
+        @Path("collection") collection: String,
+        @Path("hexId") hexId: String,
+        @Body request: UpdateRecreationItemRequest,
+    ): Response<JsonObject>
 
 }

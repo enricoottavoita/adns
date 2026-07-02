@@ -19,6 +19,21 @@ import com.eyalm.adns.data.network.NextDnsProfile
 import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
 import com.eyalm.adns.data.network.toHexId
 import com.eyalm.adns.data.nextdns.api.NextDnsErrorParser
+import com.eyalm.adns.data.nextdns.api.requestId
+import com.eyalm.adns.data.nextdns.api.toEmptyApiResult
+import com.eyalm.adns.data.nextdns.api.toJsonApiResult
+import com.eyalm.adns.data.nextdns.api.toServerFailure
+import com.eyalm.adns.data.nextdns.access.AccessEntry
+import com.eyalm.adns.data.nextdns.access.AccessRole
+import com.eyalm.adns.data.nextdns.access.InviteAccessRequest
+import com.eyalm.adns.data.nextdns.access.UpdateAccessRoleRequest
+import com.eyalm.adns.data.nextdns.rewrites.CreateRewriteRequest
+import com.eyalm.adns.data.nextdns.rewrites.Rewrite
+import com.eyalm.adns.data.nextdns.recreation.ParentalRecreationState
+import com.eyalm.adns.data.nextdns.recreation.RecreationItemCollection
+import com.eyalm.adns.data.nextdns.recreation.RecreationScheduleDto
+import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationItemRequest
+import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationScheduleRequest
 import com.eyalm.adns.data.nextdns.settings.ApiBinding
 import com.eyalm.adns.data.nextdns.settings.nestedPayload
 import com.eyalm.adns.domain.nextdns.ApiResult
@@ -290,18 +305,9 @@ class ApiRepository(private val context: Context) {
                 page = binding.page,
                 payload = nestedPayload(binding.path, encodedValue),
             )
-            if (!response.isSuccessful) return response.toServerFailure()
 
-            val problems = response.body()?.let(NextDnsErrorParser::parse).orEmpty()
-            if (problems.isNotEmpty()) {
-                ApiResult.ServerFailure(
-                    status = response.code(),
-                    problems = problems,
-                    requestId = response.requestId(),
-                )
-            } else {
-                ApiResult.Success(Unit, response.code())
-            }
+            response.toEmptyApiResult()
+
         } catch (error: IOException) {
             ApiResult.NetworkFailure(error)
         } catch (error: Exception) {
@@ -309,21 +315,6 @@ class ApiRepository(private val context: Context) {
             ApiResult.SerializationFailure(error)
         }
     }
-
-    private fun Response<*>.toServerFailure(): ApiResult.ServerFailure {
-        val body = errorBody()?.string()
-        val root = body
-            ?.takeIf(String::isNotBlank)
-            ?.let { raw -> runCatching { JsonParser.parseString(raw).asJsonObject }.getOrNull() }
-        return ApiResult.ServerFailure(
-            status = code(),
-            problems = root?.let(NextDnsErrorParser::parse).orEmpty(),
-            requestId = requestId(),
-        )
-    }
-
-    private fun Response<*>.requestId(): String? =
-        headers()["X-Request-Id"] ?: headers()["X-Request-ID"]
 
     suspend fun getActiveListItems(page: String, feat: String): List<String> = withContext(Dispatchers.IO) {
         return@withContext try {
@@ -474,6 +465,181 @@ class ApiRepository(private val context: Context) {
             Log.e("ApiRepository", "Failed to load NextDNS devices", e)
             emptyList()
         }
+    }
+
+    private val gson = Gson()
+    private suspend fun <T> profileCall( // TODO migrate other methods
+        block: suspend (profileId: String) -> ApiResult<T>,
+    ): ApiResult<T> = try {
+            val profileId = requireSelectedProfileId()
+            block(profileId)
+        } catch (error: IOException) {
+            ApiResult.NetworkFailure(error)
+        } catch (error: Exception) {
+            ApiResult.SerializationFailure(error)
+        }
+
+    suspend fun getRewrites(): ApiResult<List<Rewrite>> = profileCall { profileId ->
+        when (val result = ApiClient.nextDnsApi.getRewrites(profileId).toJsonApiResult()) {
+            is ApiResult.Success -> {
+                try {
+                    val data = result.value.getAsJsonArray("data")
+                        ?: return@profileCall ApiResult.SerializationFailure(
+                            IllegalStateException("Missing rewrite data")
+                        )
+
+                    ApiResult.Success(
+                        gson.fromJson(data, Array<Rewrite>::class.java).toList(),
+                        result.status,
+                    )
+                } catch (error: Exception) {
+                    ApiResult.SerializationFailure(error)
+                }
+            }
+
+            is ApiResult.ServerFailure -> result
+            is ApiResult.NetworkFailure -> result
+            is ApiResult.SerializationFailure -> result
+        }
+    }
+
+    suspend fun deleteRewrite(rewriteId: String): ApiResult<Unit> = profileCall { profileId ->
+        ApiClient.nextDnsApi
+            .deleteRewrite(profileId, rewriteId)
+            .toEmptyApiResult()
+    }
+
+    suspend fun createRewrite(name: String, content: String): ApiResult<Rewrite> = profileCall { profileId ->
+        when (val result = ApiClient.nextDnsApi.createRewrite(profileId, CreateRewriteRequest(name, content)).toJsonApiResult()) {
+            is ApiResult.Success -> {
+                try {
+                    val data = result.value.getAsJsonObject("data")
+                    val rewrite = gson.fromJson(data, Rewrite::class.java)
+                        ?: return@profileCall ApiResult.SerializationFailure(
+                            IllegalStateException("Missing rewrite data")
+                        )
+
+                    ApiResult.Success(
+                        rewrite,
+                        result.status,
+                    )
+                } catch (error: Exception) {
+                    ApiResult.SerializationFailure(error)
+                }
+            }
+
+            is ApiResult.ServerFailure -> result
+            is ApiResult.NetworkFailure -> result
+            is ApiResult.SerializationFailure -> result
+        }
+    }
+
+    suspend fun getAccess(): ApiResult<List<AccessEntry>> = profileCall { profileId ->
+        when (val result = ApiClient.nextDnsApi.getAccess(profileId).toJsonApiResult()) {
+            is ApiResult.Success -> {
+                try {
+                    val data = result.value.getAsJsonArray("data")
+                        ?: return@profileCall ApiResult.SerializationFailure(
+                            IllegalStateException("Missing access data")
+                        )
+                    ApiResult.Success(
+                        gson.fromJson(data, Array<AccessEntry>::class.java).toList(),
+                        result.status,
+                    )
+                } catch (error: Exception) {
+                    ApiResult.SerializationFailure(error)
+                }
+            }
+
+            is ApiResult.ServerFailure -> result
+            is ApiResult.NetworkFailure -> result
+            is ApiResult.SerializationFailure -> result
+        }
+    }
+
+    suspend fun inviteAccess(email: String, role: AccessRole): ApiResult<AccessEntry> = profileCall { profileId ->
+        when (
+            val result = ApiClient.nextDnsApi
+                .inviteAccess(profileId, InviteAccessRequest(email, role))
+                .toJsonApiResult()
+        ) {
+            is ApiResult.Success -> {
+                try {
+                    val data = result.value.getAsJsonObject("data")
+                        ?: return@profileCall ApiResult.SerializationFailure(
+                            IllegalStateException("Missing invited access entry")
+                        )
+                    val entry = gson.fromJson(data, AccessEntry::class.java)
+                        ?: return@profileCall ApiResult.SerializationFailure(
+                            IllegalStateException("Missing invited access entry")
+                        )
+                    ApiResult.Success(entry, result.status)
+                } catch (error: Exception) {
+                    ApiResult.SerializationFailure(error)
+                }
+            }
+
+            is ApiResult.ServerFailure -> result
+            is ApiResult.NetworkFailure -> result
+            is ApiResult.SerializationFailure -> result
+        }
+    }
+
+    suspend fun updateAccessRole(email: String, role: AccessRole): ApiResult<Unit> = profileCall { profileId ->
+        ApiClient.nextDnsApi
+            .updateAccessRole(profileId, email, UpdateAccessRoleRequest(role))
+            .toEmptyApiResult()
+    }
+
+    suspend fun deleteAccess(email: String): ApiResult<Unit> = profileCall { profileId ->
+        ApiClient.nextDnsApi
+            .deleteAccess(profileId, email)
+            .toEmptyApiResult()
+    }
+
+    suspend fun getParentalRecreation(): ApiResult<ParentalRecreationState> = profileCall { profileId ->
+        when (val result = ApiClient.nextDnsApi.getParentalControl(profileId).toJsonApiResult()) {
+            is ApiResult.Success -> {
+                try {
+                    val data = result.value.getAsJsonObject("data")
+                        ?: return@profileCall ApiResult.SerializationFailure(
+                            IllegalStateException("Missing parental control data")
+                        )
+                    val state = gson.fromJson(data, ParentalRecreationState::class.java)
+                        ?: return@profileCall ApiResult.SerializationFailure(
+                            IllegalStateException("Missing parental recreation data")
+                        )
+                    ApiResult.Success(state, result.status)
+                } catch (error: Exception) {
+                    ApiResult.SerializationFailure(error)
+                }
+            }
+
+            is ApiResult.ServerFailure -> result
+            is ApiResult.NetworkFailure -> result
+            is ApiResult.SerializationFailure -> result
+        }
+    }
+
+    suspend fun updateRecreationSchedule(schedule: RecreationScheduleDto): ApiResult<Unit> = profileCall { profileId ->
+        ApiClient.nextDnsApi
+            .updateRecreationSchedule(profileId, UpdateRecreationScheduleRequest(schedule))
+            .toEmptyApiResult()
+    }
+
+    suspend fun updateRecreationItem(
+        collection: RecreationItemCollection,
+        itemId: String,
+        recreation: Boolean,
+    ): ApiResult<Unit> = profileCall { profileId ->
+        ApiClient.nextDnsApi
+            .updateRecreationItem(
+                profileId = profileId,
+                collection = collection.wireName,
+                hexId = itemId.toHexId(),
+                request = UpdateRecreationItemRequest(recreation),
+            )
+            .toEmptyApiResult()
     }
 
 }

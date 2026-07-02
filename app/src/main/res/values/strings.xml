@@ -197,4 +197,24 @@
     <string name="deny">Deny</string>
     <string name="copy">Copy</string>
     <string name="no_logs_found">No logs found</string>
+    <string name="remove">Remove %1$s?</string>
+    <string name="configure_the_time_window_for_each_day">Configure the time window for each day.</string>
+    <string name="recreation_time_disabled">Not used</string>
+    <string name="recreation_time_active_count">%1$d active</string>
+    <string name="recreation_time_range">%1$s – %2$s</string>
+    <string name="recreation_time_start">Start</string>
+    <string name="recreation_time_end">End</string>
+    <string name="recreation_time_start_title">Start time</string>
+    <string name="recreation_time_end_title">End time</string>
+    <string name="recreation_time_error_both_required">Select both a start and end time.</string>
+    <string name="recreation_time_error_invalid">Select a valid time.</string>
+    <string name="recreation_time_error_end_before_start">The end time must be after the start time.</string>
+    <string name="recreation_day_monday">Monday</string>
+    <string name="recreation_day_tuesday">Tuesday</string>
+    <string name="recreation_day_wednesday">Wednesday</string>
+    <string name="recreation_day_thursday">Thursday</string>
+    <string name="recreation_day_friday">Friday</string>
+    <string name="recreation_day_saturday">Saturday</string>
+    <string name="recreation_day_sunday">Sunday</string>
+    <string name="recreation_day_unknown">Unknown day</string>
 </resources>

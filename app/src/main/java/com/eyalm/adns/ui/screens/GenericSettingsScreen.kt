@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -58,6 +60,7 @@ import com.eyalm.adns.data.nextdns.settings.SettingsPageSpec
 import com.eyalm.adns.data.nextdns.settings.StringSelectSettingSpec
 import com.eyalm.adns.ui.components.ExpressiveListItem
 import com.eyalm.adns.ui.components.ListIconView
+import com.eyalm.adns.ui.components.dialogs.BaseDialog
 import com.eyalm.adns.ui.theme.pageTitle
 import com.eyalm.adns.ui.theme.settingsLabel
 import com.eyalm.adns.viewmodel.SettingsViewModel
@@ -74,6 +77,7 @@ fun GenericCategoryScreen(
     title: String,
     settingsPage: SettingsPageSpec,
     lists: List<NextDnsResourceSpec> = emptyList(),
+    extraContent: (@Composable () -> Unit)? = null,
     onBack: () -> Unit,
 ) {
     val viewModel: SettingsViewModel = viewModel()
@@ -130,24 +134,13 @@ fun GenericCategoryScreen(
 
     scalarSettings.pendingConfirmation?.let { pending ->
         val confirmation = pending.spec.confirmation ?: return@let
-        AlertDialog(
-            onDismissRequest = viewModel::cancelPendingSettingChange,
-            title = {
-                Text(Locales.getString(*confirmation.titlePath.toTypedArray()))
-            },
-            text = {
-                Text(Locales.getString(*confirmation.bodyPath.toTypedArray()))
-            },
-            confirmButton = {
-                Button(onClick = viewModel::confirmPendingSettingChange) {
-                    Text(stringResource(R.string.change))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::cancelPendingSettingChange) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
+        BaseDialog(
+            title = Locales.getString(*confirmation.titlePath.toTypedArray()),
+            body = Locales.getString(*confirmation.bodyPath.toTypedArray()),
+            confirmLabel = Locales.getString("global", "change"),
+            destructive = confirmation.destructive,
+            onConfirm = viewModel::confirmPendingSettingChange,
+            onDismiss = viewModel::cancelPendingSettingChange
         )
     }
 
@@ -265,6 +258,15 @@ fun GenericCategoryScreen(
                         )
                     }
                 }
+
+                extraContent?.let { content ->
+                    item { content() }
+                }
+
+                item {
+                    Spacer(Modifier.height(12.dp))
+                }
+
             }
         }
     }
@@ -336,8 +338,9 @@ private fun ScalarSettingRow(
                 interactiveItem = { _, _ ->
                     Switch(
                         checked = checked,
-                        enabled = !saving,
-                        onCheckedChange = { onBooleanChange(spec, it) },
+                        onCheckedChange = { newValue ->
+                            if (!saving) onBooleanChange(spec, newValue)
+                        },
                     )
                 },
                 isFirst = isFirst,
@@ -416,7 +419,7 @@ private fun <T : Any> SettingSelectionDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(android.R.string.cancel))
+                Text(Locales.getString("global", "cancel"))
             }
         },
         confirmButton = {
@@ -424,7 +427,7 @@ private fun <T : Any> SettingSelectionDialog(
                 onClick = { selected?.value?.let(onSelect) },
                 enabled = selected != null
             ) {
-                Text(stringResource(R.string.confirm))
+                Text(Locales.getString("global", "save"))
             }
         }
     )
