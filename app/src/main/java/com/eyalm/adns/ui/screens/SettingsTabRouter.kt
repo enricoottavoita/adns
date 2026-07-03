@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -33,6 +34,7 @@ import com.eyalm.adns.ui.screens.settings.GenericListScreen
 import com.eyalm.adns.ui.screens.settings.LanguageScreen
 import com.eyalm.adns.ui.screens.settings.LogsScreen
 import com.eyalm.adns.ui.screens.settings.MainSettingsScreen
+import com.eyalm.adns.ui.screens.settings.ProfileActionsSection
 import com.eyalm.adns.ui.screens.settings.ProvidersScreen
 import com.eyalm.adns.ui.screens.settings.RecreationSection
 import com.eyalm.adns.ui.screens.settings.RewritesSection
@@ -49,6 +51,13 @@ fun SettingsTabRouter(
     val viewModel: SettingsViewModel = viewModel()
     val page by viewModel.page.collectAsState()
     val selectedProvider by viewModel.selectedProvider.collectAsState()
+    val profileSession by viewModel.profileSessionState.collectAsState()
+
+    LaunchedEffect(selectedProvider) {
+        if (selectedProvider.id == "nextdns") {
+            viewModel.refreshProfileSession()
+        }
+    }
 
 
     AnimatedContent(
@@ -124,6 +133,7 @@ fun SettingsTabRouter(
                 GenericCategoryScreen(
                     title = stringResource(R.string.security),
                     settingsPage = NextDnsSettingRegistry.security,
+                    profileState = profileSession,
                     lists = NextDnsResourceRegistry.security,
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
@@ -134,6 +144,7 @@ fun SettingsTabRouter(
                 GenericCategoryScreen(
                     title = stringResource(R.string.privacy),
                     settingsPage = NextDnsSettingRegistry.privacy,
+                    profileState = profileSession,
                     lists = NextDnsResourceRegistry.privacy,
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
@@ -144,8 +155,16 @@ fun SettingsTabRouter(
                 GenericCategoryScreen(
                     title = stringResource(R.string.parental_control),
                     settingsPage = NextDnsSettingRegistry.parentalControl,
+                    profileState = profileSession,
                     lists = NextDnsResourceRegistry.parentalControl,
-                    extraContent = { RecreationSection() },
+                    extraContent = { profile ->
+                        profile.selected?.let { selected ->
+                            RecreationSection(
+                                profileId = selected.id,
+                                canEdit = profile.capabilities.canEditSettings,
+                            )
+                        }
+                    },
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 )
             }
@@ -155,12 +174,38 @@ fun SettingsTabRouter(
                 GenericCategoryScreen(
                     title = stringResource(R.string.settings),
                     settingsPage = NextDnsSettingRegistry.settings,
-                    extraContent = {
-                        RewritesSection()
-                        Spacer(Modifier.height(20.dp))
-                        AccessSection()
+                    profileState = profileSession,
+                    extraContent = { profile ->
+                        profile.selected?.let { selected ->
+                            RewritesSection(
+                                profileId = selected.id,
+                                canEdit = profile.capabilities.canEditSettings,
+                            )
+                            if (profile.capabilities.canManageAccess) {
+                                Spacer(Modifier.height(20.dp))
+                                AccessSection(profileId = selected.id)
+                            }
+                            Spacer(Modifier.height(20.dp))
+                            ProfileActionsSection(
+                                profile = selected,
+                                capabilities = profile.capabilities,
+                                onProfileRemoved = { removedProfileId ->
+                                    viewModel.onProfileRemoved(
+                                        removedProfileId,
+                                        onComplete = {
+                                            viewModel.setPage(SettingsViewModel.Page.ACCOUNT_SETTINGS)
+                                        },
+                                    )
+                                },
+                                onProfileListChanged = viewModel::onProfileRenamed,
+                                onOpenProfileSettings = {
+                                    viewModel.setPage(SettingsViewModel.Page.ACCOUNT_SETTINGS)
+                                },
+                            )
+                        }
                     },
-                    onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
+                    onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) },
+                    onLogsCleared = viewModel::invalidateLogs,
                 )
             }
             SettingsViewModel.Page.GENERIC_LIST -> {
@@ -168,13 +213,15 @@ fun SettingsTabRouter(
                 val parentPage = viewModel.getListParentPage()
                 BackHandler { viewModel.setPage(parentPage) }
                 GenericListScreen(
-                    onBack = { viewModel.setPage(parentPage) }
+                    onBack = { viewModel.setPage(parentPage) },
+                    profileState = profileSession,
                 )
             }
             SettingsViewModel.Page.LOGS -> {
                 BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
                 LogsScreen(
-                    onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) }
+                    onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) },
+                    profileState = profileSession,
                 )
             }
             SettingsViewModel.Page.LANGUAGE -> {

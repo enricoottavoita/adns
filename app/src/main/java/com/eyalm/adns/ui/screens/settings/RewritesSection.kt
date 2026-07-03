@@ -37,11 +37,13 @@ import com.eyalm.adns.viewmodel.RewritesViewModel
 
 @Composable
 fun RewritesSection(
-    viewModel: RewritesViewModel = viewModel(),
+    profileId: String,
+    canEdit: Boolean
 ) {
+    val viewModel: RewritesViewModel = viewModel(key = "rewrites-$profileId")
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(profileId) {
         viewModel.load()
     }
 
@@ -55,7 +57,7 @@ fun RewritesSection(
         interactiveItem = { _, _ ->
             Row {
                 Spacer(Modifier.width(4.dp))
-                IconButton(onClick = viewModel::openCreate) {
+                IconButton(onClick = viewModel::openCreate, enabled = canEdit) {
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = Locales.getString("global", "add")
@@ -88,6 +90,7 @@ fun RewritesSection(
                     isFirst = index == 0,
                     isLast = index == state.items.lastIndex,
                     onDelete = { viewModel.requestDelete(rewrite) },
+                    canEdit = canEdit
                 )
             }
 
@@ -186,6 +189,7 @@ private fun RewriteRow(
     isFirst: Boolean,
     isLast: Boolean,
     onDelete: () -> Unit,
+    canEdit: Boolean
 ) {
     ExpressiveListItem(
         title = "*.${rewrite.name} → ${rewrite.content}",
@@ -193,7 +197,7 @@ private fun RewriteRow(
         description = rewrite.type,
         onClick = {},
         interactiveItem = { _, _ ->
-            IconButton(onClick = onDelete) {
+            IconButton(onClick = onDelete, enabled = canEdit) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = Locales.getString("global", "remove")

@@ -6,6 +6,7 @@ import com.eyalm.adns.data.nextdns.access.UpdateAccessRoleRequest
 import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationItemRequest
 import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationScheduleRequest
 import com.google.gson.JsonObject
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -15,16 +16,52 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.QueryMap
+import retrofit2.http.Streaming
 
 interface NextDnsApi {
 
     @GET("profiles")
     suspend fun getProfiles(): NextDnsProfilesResponse
 
+    @GET("profiles")
+    suspend fun getProfilesRaw(): Response<JsonObject>
+
     @POST("profiles")
     suspend fun createProfile(
         @Body request: NextDnsCreateProfileRequest
     ): Response<NextDnsProfile>
+
+    @DELETE("profiles/{profileId}/logs")
+    suspend fun clearLogs(
+        @Path("profileId") profileId: String,
+    ): Response<Unit>
+
+    @Streaming
+    @GET("profiles/{profileId}/logs/download")
+    suspend fun downloadLogs(
+        @Path("profileId") profileId: String,
+    ): Response<ResponseBody>
+
+    @GET("profiles/{profileId}")
+    suspend fun getProfileDetail(
+        @Path("profileId") profileId: String,
+    ): Response<JsonObject>
+
+    @POST("profiles")
+    suspend fun duplicateProfile(
+        @Body request: JsonObject,
+    ): Response<JsonObject>
+
+    @PATCH("profiles/{profileId}")
+    suspend fun renameProfile(
+        @Path("profileId") profileId: String,
+        @Body request: JsonObject,
+    ): Response<JsonObject>
+
+    @DELETE("profiles/{profileId}")
+    suspend fun deleteOrLeaveProfile(
+        @Path("profileId") profileId: String,
+    ): Response<Unit>
 
     @GET("profiles/{profileId}/analytics/status")
     suspend fun getAnalytics(

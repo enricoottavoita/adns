@@ -36,6 +36,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,7 +64,8 @@ fun AccountSettingsScreen(
 ) {
     val viewModel: SettingsViewModel = viewModel()
     val email = viewModel.email
-    var selectedProfile by remember { mutableStateOf(viewModel.currentProfile) }
+    val profileSession by viewModel.profileSessionState.collectAsState()
+    val selectedProfile = profileSession.selected
     var openCreateProfileDialog by remember { mutableStateOf(false) }
     var deviceName by remember { mutableStateOf(viewModel.nextDnsDeviceName) }
     val isDeviceNameValid = remember(deviceName) {
@@ -72,11 +74,6 @@ fun AccountSettingsScreen(
 
     LaunchedEffect(viewModel.nextDnsDeviceName) {
         deviceName = viewModel.nextDnsDeviceName
-    }
-
-
-    LaunchedEffect(Unit) {
-        selectedProfile = viewModel.getCurrentProfile()
     }
 
     when {
@@ -127,7 +124,7 @@ fun AccountSettingsScreen(
                 )
             }
 
-            if (selectedProfile == null) {
+            if (profileSession.loading && selectedProfile == null) {
                 item {
                     Loading()
                 }
@@ -207,21 +204,16 @@ fun AccountSettingsScreen(
                         }
                     }
                 }
-                viewModel.profiles?.let { currentProfiles ->
-                    item {
-                        ProfilesList(
-                            profiles = currentProfiles,
-                            selectedProfile = selectedProfile,
-                            onProfileSelected = {
-                                selectedProfile = it
-                                viewModel.setProfile(it)
-                            },
-                            onCreateProfileClick = {
-                                openCreateProfileDialog = true
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                item {
+                    ProfilesList(
+                        profiles = profileSession.profiles,
+                        selectedProfile = selectedProfile,
+                        onProfileSelected = viewModel::setProfile,
+                        onCreateProfileClick = {
+                            openCreateProfileDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
 

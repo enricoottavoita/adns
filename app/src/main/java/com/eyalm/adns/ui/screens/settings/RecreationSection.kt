@@ -56,11 +56,13 @@ import java.util.Locale
 
 @Composable
 fun RecreationSection(
-    viewModel: RecreationViewModel = viewModel(),
+    profileId: String,
+    canEdit: Boolean
 ) {
+    val viewModel: RecreationViewModel = viewModel(key = "recreation-$profileId")
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(profileId) {
         viewModel.load()
     }
 
@@ -72,7 +74,7 @@ fun RecreationSection(
         isLast = true,
         trailingCenter = true,
         interactiveItem = { _, _ ->
-            IconButton(onClick = viewModel::openEditor) {
+            IconButton(onClick = viewModel::openEditor, enabled = canEdit) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = Locales.getString("global", "add"),
@@ -113,7 +115,7 @@ fun RecreationSection(
                         activeDays.forEachIndexed { index, day ->
                             state.schedule.times[day]?.let { window ->
                                 ExpressiveListItem(
-                                    onClick = viewModel::openEditor,
+                                    onClick = { if (canEdit) viewModel.openEditor() },
                                     title = recreationDayName(day),
                                     interactiveItem = { _, _ ->
                                         Text(
@@ -143,6 +145,7 @@ fun RecreationSection(
                     collection = RecreationItemCollection.Services,
                     saving = viewModel::isSavingItem,
                     onToggle = viewModel::toggleItem,
+                    canEdit = canEdit,
                 )
 
                 RecreationItemGroup(
@@ -151,6 +154,7 @@ fun RecreationSection(
                     collection = RecreationItemCollection.Categories,
                     saving = viewModel::isSavingItem,
                     onToggle = viewModel::toggleItem,
+                    canEdit = canEdit,
                 )
 
             }
@@ -176,6 +180,7 @@ private fun RecreationItemGroup(
     collection: RecreationItemCollection,
     saving: (RecreationItemCollection, String) -> Boolean,
     onToggle: (RecreationItemCollection, ParentalRecreationItem) -> Unit,
+    canEdit: Boolean,
 ) {
     if (items.isEmpty()) return
 
@@ -201,12 +206,12 @@ private fun RecreationItemGroup(
                     title = item.displayName(collection),
                     isSelected = true,
                     onClick = {
-                        if (item.active && !pending) onToggle(collection, item)
+                        if (canEdit && item.active && !pending) onToggle(collection, item)
                     },
                     interactiveItem = { _, _ ->
                         Switch(
                             checked = item.recreation,
-                            enabled = item.active && !pending,
+                            enabled = canEdit && item.active && !pending,
                             onCheckedChange = { onToggle(collection, item) },
                         )
                     },

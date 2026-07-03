@@ -56,17 +56,22 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.nextdns.model.ListIcon
 import com.eyalm.adns.ui.components.ExpressiveListItem
 import com.eyalm.adns.ui.theme.pageTitle
+import com.eyalm.adns.viewmodel.ProfileSessionState
 import com.eyalm.adns.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun GenericListScreen(onBack: () -> Unit) {
+fun GenericListScreen(
+    onBack: () -> Unit,
+    profileState: ProfileSessionState,
+) {
     val viewModel: SettingsViewModel = viewModel()
     val listSetting = viewModel.currentListSetting ?: return
     val context = LocalContext.current
     val activeIds by viewModel.activeListIds.collectAsState()
     val availableItems by viewModel.availableItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val canEdit = profileState.capabilities.canEditSettings
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -110,7 +115,7 @@ fun GenericListScreen(onBack: () -> Unit) {
             )
         },
         floatingActionButton = {
-            if (listSetting.allowsCustomInput) {
+            if (listSetting.allowsCustomInput && canEdit) {
                 ExtendedFloatingActionButton(
                     icon = { Icon(Icons.Filled.Add, "add") },
                     text = { Text(text = stringResource(R.string.add_item)) },
@@ -138,10 +143,11 @@ fun GenericListScreen(onBack: () -> Unit) {
                 }
             }
 
-            val checkboxItem = remember {
+            val checkboxItem = remember(canEdit) {
                 @Composable { selected: Boolean, onClick: () -> Unit ->
                     Checkbox(
                         checked = selected,
+                        enabled = canEdit,
                         onCheckedChange = { onClick() }
                     )
                 }
@@ -160,7 +166,7 @@ fun GenericListScreen(onBack: () -> Unit) {
                         modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
                     )
                     Text(text = listSetting.description(context) , fontSize = 16.sp)
-                    if (listSetting.allowsCustomInput) {
+                    if (listSetting.allowsCustomInput && canEdit) {
                         Text(text = stringResource(R.string.hint_to_remove_items_from_the_list_swipe_to_the_left), fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -193,7 +199,7 @@ fun GenericListScreen(onBack: () -> Unit) {
                     val onItemClick = remember(item.id) {
                         { viewModel.toggleListItem(item.id) }
                     }
-                    if (listSetting.allowsCustomInput) {
+                    if (listSetting.allowsCustomInput && canEdit) {
                         SwipeToDismissBox(
                             state = dismissState,
                             enableDismissFromStartToEnd = false,

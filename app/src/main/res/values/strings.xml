@@ -217,4 +217,10 @@
     <string name="recreation_day_saturday">Saturday</string>
     <string name="recreation_day_sunday">Sunday</string>
     <string name="recreation_day_unknown">Unknown day</string>
+    <string name="rename_profile">Rename profile</string>
+    <string name="logs_cleared">Logs cleared.</string>
+    <string name="logs_downloaded">Logs downloaded.</string>
+    <string name="profile_duplicated">Profile duplicated.</string>
+    <string name="profile_renamed">Profile renamed.</string>
+    <string name="rename">Rename</string>
 </resources>

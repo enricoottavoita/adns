@@ -63,6 +63,7 @@ import com.eyalm.adns.ui.components.ListIconView
 import com.eyalm.adns.ui.components.dialogs.BaseDialog
 import com.eyalm.adns.ui.theme.pageTitle
 import com.eyalm.adns.ui.theme.settingsLabel
+import com.eyalm.adns.viewmodel.ProfileSessionState
 import com.eyalm.adns.viewmodel.SettingsViewModel
 import com.google.gson.JsonElement
 
@@ -71,23 +72,30 @@ private sealed interface SettingSelector {
     data class StringSelector(val spec: StringSelectSettingSpec) : SettingSelector
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GenericCategoryScreen(
     title: String,
     settingsPage: SettingsPageSpec,
+    profileState: ProfileSessionState,
     lists: List<NextDnsResourceSpec> = emptyList(),
-    extraContent: (@Composable () -> Unit)? = null,
+    extraContent: (@Composable (profileState: ProfileSessionState) -> Unit)? = null,
     onBack: () -> Unit,
+    onLogsCleared: () -> Unit = {},
 ) {
     val viewModel: SettingsViewModel = viewModel()
     val scalarSettings by viewModel.scalarSettings.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    var selector by remember(settingsPage.page) { mutableStateOf<SettingSelector?>(null) }
+    var selector by remember(settingsPage.page, profileState.selected?.id) {
+        mutableStateOf<SettingSelector?>(null)
+    }
 
-    LaunchedEffect(settingsPage.page) {
-        viewModel.loadScalarSettings(settingsPage)
+    LaunchedEffect(settingsPage.page, profileState.selected?.id) {
+        if (profileState.selected != null) {
+            viewModel.loadScalarSettings(settingsPage)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -161,7 +169,12 @@ fun GenericCategoryScreen(
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
-        val isLoading = scalarSettings.page != settingsPage.page || scalarSettings.loading
+        val isLoading =
+            profileState.loading ||
+                    profileState.selected == null ||
+                    scalarSettings.page != settingsPage.page ||
+                    scalarSettings.profileId != profileState.selected.id ||
+                    scalarSettings.loading
         if (isLoading) {
             Box(
                 modifier = Modifier
@@ -226,14 +239,30 @@ fun GenericCategoryScreen(
                     .filterKeys { it in multiItemGroupKeys }
                     .forEach { (groupKey, settings) ->
                         item {
+                            val logsActions: (@Composable () -> Unit)? =
+                                if (settingsPage.page == "settings" && groupKey == "logs") {
+                                    {
+                                        profileState.selected?.let { profile ->
+                                            LogsActionsSection(
+                                                profile = profile,
+                                                capabilities = profileState.capabilities,
+                                                onLogsCleared = onLogsCleared,
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    null
+                                }
                             ScalarSettingsGroup(
                                 title = groupTitle(settingsPage.page, groupKey),
                                 settings = settings,
                                 values = scalarSettings.values,
                                 saving = scalarSettings.saving,
+                                editable = profileState.capabilities.canEditSettings,
                                 onBooleanChange = viewModel::changeBooleanSetting,
                                 onIntSelect = { selector = SettingSelector.IntSelector(it) },
                                 onStringSelect = { selector = SettingSelector.StringSelector(it) },
+                                footer = logsActions,
                             )
                         }
                     }
@@ -252,6 +281,7 @@ fun GenericCategoryScreen(
                             settings = singleItemSettings,
                             values = scalarSettings.values,
                             saving = scalarSettings.saving,
+                            editable = profileState.capabilities.canEditSettings,
                             onBooleanChange = viewModel::changeBooleanSetting,
                             onIntSelect = { selector = SettingSelector.IntSelector(it) },
                             onStringSelect = { selector = SettingSelector.StringSelector(it) },
@@ -260,7 +290,7 @@ fun GenericCategoryScreen(
                 }
 
                 extraContent?.let { content ->
-                    item { content() }
+                    item { content(profileState) }
                 }
 
                 item {
@@ -278,9 +308,11 @@ private fun ScalarSettingsGroup(
     settings: List<ProfileSettingSpec<*>>,
     values: Map<SettingId, JsonElement>,
     saving: Set<SettingId>,
+    editable: Boolean,
     onBooleanChange: (BooleanSettingSpec, Boolean) -> Unit,
     onIntSelect: (IntSelectSettingSpec) -> Unit,
     onStringSelect: (StringSelectSettingSpec) -> Unit,
+    footer: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -297,13 +329,16 @@ private fun ScalarSettingsGroup(
                 spec = spec,
                 rawValue = values[spec.id],
                 saving = spec.id in saving,
+                editable = editable,
                 isFirst = index == 0,
-                isLast = index == settings.lastIndex,
+                isLast = if (footer != null) false else index == settings.lastIndex,
                 onBooleanChange = onBooleanChange,
                 onIntSelect = onIntSelect,
                 onStringSelect = onStringSelect,
             )
         }
+        footer?.invoke()
+
     }
 }
 
@@ -319,6 +354,7 @@ private fun ScalarSettingRow(
     spec: ProfileSettingSpec<*>,
     rawValue: JsonElement?,
     saving: Boolean,
+    editable: Boolean,
     isFirst: Boolean,
     isLast: Boolean,
     onBooleanChange: (BooleanSettingSpec, Boolean) -> Unit,
@@ -333,13 +369,14 @@ private fun ScalarSettingRow(
                 description = spec.locale.description(LocalContext.current),
                 isSelected = checked,
                 onClick = {
-                    if (!saving) onBooleanChange(spec, !checked)
+                    if (editable && !saving) onBooleanChange(spec, !checked)
                 },
                 interactiveItem = { _, _ ->
                     Switch(
                         checked = checked,
+                        enabled = editable,
                         onCheckedChange = { newValue ->
-                            if (!saving) onBooleanChange(spec, newValue)
+                            if (editable && !saving) onBooleanChange(spec, newValue)
                         },
                     )
                 },
@@ -355,7 +392,7 @@ private fun ScalarSettingRow(
                 description = spec.options.firstOrNull { it.value == value }
                     ?.label(LocalContext.current)
                     ?: value.toString(),
-                onClick = { if (!saving) onIntSelect(spec) },
+                onClick = { if (editable && !saving) onIntSelect(spec) },
                 secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 isFirst = isFirst,
                 isLast = isLast,
@@ -369,7 +406,7 @@ private fun ScalarSettingRow(
                 description = spec.options.firstOrNull { it.value == value }
                     ?.label(LocalContext.current)
                     ?: value,
-                onClick = { if (!saving) onStringSelect(spec) },
+                onClick = { if (editable && !saving) onStringSelect(spec) },
                 secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 isFirst = isFirst,
                 isLast = isLast,

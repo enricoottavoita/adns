@@ -45,6 +45,10 @@ import com.eyalm.adns.data.nextdns.settings.SettingsPageSpec
 import com.eyalm.adns.data.nextdns.settings.StringSelectSettingSpec
 import com.eyalm.adns.data.nextdns.settings.valueAt
 import com.eyalm.adns.domain.nextdns.ApiResult
+import com.eyalm.adns.domain.nextdns.ProfileCapabilities
+import com.eyalm.adns.domain.nextdns.ProfileRole
+import com.eyalm.adns.domain.nextdns.capabilities
+import com.eyalm.adns.domain.nextdns.profileRoleFromWire
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -56,11 +60,21 @@ import kotlinx.coroutines.launch
 
 data class ScalarSettingsUiState(
     val page: String? = null,
+    val profileId: String? = null,
     val loading: Boolean = false,
     val loaded: Boolean = false,
     val values: Map<SettingId, JsonElement> = emptyMap(),
     val saving: Set<SettingId> = emptySet(),
     val pendingConfirmation: PendingSettingChange? = null,
+)
+
+data class ProfileSessionState(
+    val loading: Boolean = true,
+    val profiles: List<NextDnsProfile> = emptyList(),
+    val selected: NextDnsProfile? = null,
+    val capabilities: ProfileCapabilities = ProfileRole.Unknown.capabilities(),
+    val logsRevision: Long = 0,
+    val error: ApiResult<*>? = null,
 )
 
 data class PendingSettingChange(
@@ -91,6 +105,91 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _notificationsEnabled = MutableStateFlow(repository.isNotificationEnabled())
     val notificationsEnabled = _notificationsEnabled.asStateFlow()
+
+    private val _profileSessionState = MutableStateFlow(ProfileSessionState())
+    val profileSessionState = _profileSessionState.asStateFlow()
+
+    fun refreshProfileSession() {
+        _profileSessionState.value = _profileSessionState.value.copy(loading = true, error = null)
+        viewModelScope.launch {
+            when (val result = apiRepository.getNextDnsProfilesResult()) {
+                is ApiResult.Success -> publishProfileSession(result.value)
+                else -> _profileSessionState.value = _profileSessionState.value.copy(
+                    loading = false,
+                    error = result,
+                )
+            }
+        }
+    }
+
+    fun onProfileRemoved(
+        removedProfileId: String,
+        onComplete: () -> Unit = {},
+    ) {
+        viewModelScope.launch {
+            val result = apiRepository.getNextDnsProfilesResult()
+            val remaining = when (result) {
+                is ApiResult.Success -> result.value.filterNot { it.id == removedProfileId }
+                else -> _profileSessionState.value.profiles.filterNot { it.id == removedProfileId }
+            }
+            val wasSelected = apiRepository.getCurrentNextDnsProfileId() == removedProfileId
+            if (wasSelected) {
+                remaining.firstOrNull()?.let { fallback ->
+                    apiRepository.setNextDnsProfile(
+                        fallback,
+                        apiRepository.getNextDnsDeviceName(),
+                    )
+                } ?: apiRepository.clearSelectedNextDnsProfile()
+                refreshProvider()
+            }
+            invalidateProfileScopedState()
+            publishProfileSession(remaining)
+            if (result !is ApiResult.Success) {
+                _profileSessionState.value = _profileSessionState.value.copy(error = result)
+            }
+            setPage(Page.MAIN)
+            onComplete()
+        }
+    }
+
+    fun onProfileRenamed() = refreshProfileSession()
+
+    private fun publishProfileSession(availableProfiles: List<NextDnsProfile>) {
+        val previous = _profileSessionState.value
+        val selectedId = apiRepository.getCurrentNextDnsProfileId()
+        val selected = availableProfiles.firstOrNull { it.id == selectedId }
+        val profileChanged = previous.selected?.id != selected?.id
+        if (profileChanged) {
+            invalidateProfileScopedState()
+            if (_page.value == Page.GENERIC_LIST) {
+                setPage(Page.MAIN)
+            }
+        }
+        profiles = availableProfiles
+        currentProfile = selected
+        _profileSessionState.value = ProfileSessionState(
+            loading = false,
+            profiles = availableProfiles,
+            selected = selected,
+            capabilities = profileRoleFromWire(selected?.role).capabilities(),
+            logsRevision = previous.logsRevision + if (profileChanged) 1 else 0,
+        )
+    }
+
+    private fun invalidateProfileScopedState() {
+        listLoadGeneration++
+        _scalarSettings.value = ScalarSettingsUiState()
+        _activeListIds.value = emptySet()
+        _availableItems.value = emptyList()
+        _listLoading.value = false
+        currentListSetting = null
+    }
+
+    fun invalidateLogs() {
+        _profileSessionState.value = _profileSessionState.value.copy(
+            logsRevision = _profileSessionState.value.logsRevision + 1,
+        )
+    }
 
     fun setNotificationsEnabled(enabled: Boolean) {
         repository.setNotificationEnabled(enabled)
@@ -197,6 +296,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val nameToSet = currentName.ifEmpty { "ADNS" }
         apiRepository.setNextDnsProfile(profile, nameToSet)
         nextDnsDeviceName = apiRepository.getNextDnsDeviceName()
+        val knownProfiles = _profileSessionState.value.profiles.ifEmpty { profiles.orEmpty() }
+        val updatedProfiles = if (knownProfiles.any { it.id == profile.id }) {
+            knownProfiles.map { if (it.id == profile.id) profile else it }
+        } else {
+            knownProfiles + profile
+        }
+        profiles = updatedProfiles
+        publishProfileSession(updatedProfiles)
+        refreshProvider()
+        refreshProfileSession()
     }
 
     fun updateDeviceName(name: String) {
@@ -208,7 +317,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun createProfile(name: String) {
         viewModelScope.launch {
             apiRepository.createNextDnsProfile(name)
-            profiles = getProfiles()
+            when (val result = apiRepository.getNextDnsProfilesResult()) {
+                is ApiResult.Success -> publishProfileSession(result.value)
+                else -> _profileSessionState.value = _profileSessionState.value.copy(error = result)
+            }
         }
     }
 
@@ -223,6 +335,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _listLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _listLoading.asStateFlow()
+    private var listLoadGeneration = 0L
 
 
     var currentListSetting: NextDnsResourceSpec? = null
@@ -241,13 +354,27 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val errorMessage = _errorMessage.asSharedFlow()
 
     fun loadScalarSettings(pageSpec: SettingsPageSpec) {
+        val profileId = _profileSessionState.value.selected?.id ?: return
         val current = _scalarSettings.value
-        if (current.page == pageSpec.page && (current.loading || current.loaded)) return
+        if (
+            current.page == pageSpec.page &&
+            current.profileId == profileId &&
+            (current.loading || current.loaded)
+        ) return
 
-        _scalarSettings.value = ScalarSettingsUiState(page = pageSpec.page, loading = true)
+        _scalarSettings.value = ScalarSettingsUiState(
+            page = pageSpec.page,
+            profileId = profileId,
+            loading = true,
+        )
         viewModelScope.launch {
             when (val result = apiRepository.getScalarSettings(pageSpec.page)) {
                 is ApiResult.Success -> {
+                    if (
+                        _profileSessionState.value.selected?.id != profileId ||
+                        _scalarSettings.value.page != pageSpec.page ||
+                        _scalarSettings.value.profileId != profileId
+                    ) return@launch
                     val values = buildMap {
                         pageSpec.settings.forEach { spec ->
                             val raw = result.value.valueAt(spec.api.path)
@@ -258,13 +385,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     }
                     _scalarSettings.value = ScalarSettingsUiState(
                         page = pageSpec.page,
+                        profileId = profileId,
                         loaded = true,
                         values = values,
                     )
                 }
 
                 else -> {
-                    _scalarSettings.value = ScalarSettingsUiState(page = pageSpec.page)
+                    if (
+                        _profileSessionState.value.selected?.id != profileId ||
+                        _scalarSettings.value.page != pageSpec.page ||
+                        _scalarSettings.value.profileId != profileId
+                    ) return@launch
+                    _scalarSettings.value = ScalarSettingsUiState(
+                        page = pageSpec.page,
+                        profileId = profileId,
+                    )
                     _errorMessage.emit(
                         getApplication<Application>().getString(
                             R.string.failed_to_load_page_data_check_your_network_connection_and_try_again_later
@@ -276,14 +412,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun changeBooleanSetting(spec: BooleanSettingSpec, value: Boolean) {
+        if (!_profileSessionState.value.capabilities.canEditSettings) return
         requestSettingChange(spec, spec.encode(value))
     }
 
     fun changeIntSetting(spec: IntSelectSettingSpec, value: Int) {
+        if (!_profileSessionState.value.capabilities.canEditSettings) return
         requestSettingChange(spec, spec.encode(value))
     }
 
     fun changeStringSetting(spec: StringSelectSettingSpec, value: String) {
+        if (!_profileSessionState.value.capabilities.canEditSettings) return
         requestSettingChange(spec, spec.encode(value))
     }
 
@@ -313,6 +452,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun persistSettingChange(spec: ProfileSettingSpec<*>, encodedValue: Any) {
         val previousValue = _scalarSettings.value.values[spec.id] ?: return
+        val profileId = _scalarSettings.value.profileId ?: return
         val encodedJson = Gson().toJsonTree(encodedValue)
 
         _scalarSettings.value = _scalarSettings.value.copy(
@@ -323,7 +463,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val result = apiRepository.patchScalarSetting(spec.api, encodedValue)
             val current = _scalarSettings.value
-            if (current.page != spec.api.page) return@launch
+            if (current.page != spec.api.page || current.profileId != profileId) return@launch
 
             if (result is ApiResult.Success) {
                 _scalarSettings.value = current.copy(saving = current.saving - spec.id)
@@ -366,10 +506,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun getListParentPage(): Page = listParentPage
 
     private fun loadListData(listSetting: NextDnsResourceSpec) {
+        val profileId = _profileSessionState.value.selected?.id ?: return
+        val requestGeneration = ++listLoadGeneration
         viewModelScope.launch {
             try {
                 _listLoading.value = true
-                if (listSetting.allowsCustomInput) {
+                val (activeIds, items) = if (listSetting.allowsCustomInput) {
                     val dataArray = apiRepository.getCustomListItems(listSetting.apiPage)
 
                     val activeIds = mutableSetOf<String>()
@@ -383,33 +525,44 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         items.add(NextDnsResourceItem(id = id, name = "*.$id"))
                         if (isActive) activeIds.add(id)
                     }
-
-                    _activeListIds.value = activeIds
-                    _availableItems.value = items
+                    activeIds to items
                 } else {
-
                     val activeIds = apiRepository.getActiveListItems(
                         listSetting.apiPage, listSetting.apiFeature
                     )
-                    _activeListIds.value = activeIds.toSet()
-
                     val items: List<NextDnsResourceItem> = when (listSetting.source) {
                         NextDnsResourceSource.SERVER -> loadServerList(listSetting)
                         NextDnsResourceSource.LOCALE -> loadLocaleList(listSetting)
                     }
-                    _availableItems.value = items
-                    if (items.isEmpty()) {
-                        _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_list_data))
-                    }
+                    activeIds.toSet() to items
                 }
-                _listLoading.value = false
 
+                if (!isCurrentListRequest(requestGeneration, profileId, listSetting)) return@launch
+                _activeListIds.value = activeIds
+                _availableItems.value = items
+                if (items.isEmpty() && !listSetting.allowsCustomInput) {
+                    _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_list_data))
+                }
             } catch (e: Exception) {
-                _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_list_data_check_your_network_connection_and_try_again_later))
-                _listLoading.value = false
+                if (isCurrentListRequest(requestGeneration, profileId, listSetting)) {
+                    _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_load_list_data_check_your_network_connection_and_try_again_later))
+                }
+            } finally {
+                if (isCurrentListRequest(requestGeneration, profileId, listSetting)) {
+                    _listLoading.value = false
+                }
             }
         }
     }
+
+    private fun isCurrentListRequest(
+        requestGeneration: Long,
+        profileId: String,
+        listSetting: NextDnsResourceSpec,
+    ): Boolean =
+        requestGeneration == listLoadGeneration &&
+                _profileSessionState.value.selected?.id == profileId &&
+                currentListSetting == listSetting
 
 
     private fun getDomain(url: String?): String? {
@@ -528,6 +681,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
 
     fun toggleListItem(itemId: String) {
+        if (!_profileSessionState.value.capabilities.canEditSettings) return
+        val profileId = _profileSessionState.value.selected?.id ?: return
         val listSetting = currentListSetting ?: return
         val isCurrentlyActive = _activeListIds.value.contains(itemId)
         val newState = !isCurrentlyActive
@@ -546,6 +701,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 }
             }
             if (!success) {
+                if (_profileSessionState.value.selected?.id != profileId || currentListSetting != listSetting) {
+                    return@launch
+                }
                 if (isCurrentlyActive) _activeListIds.value += itemId else _activeListIds.value -= itemId
                 _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_update, itemId))
             }
@@ -553,6 +711,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun addCustomDomain(domain: String) {
+        if (!_profileSessionState.value.capabilities.canEditSettings) return
+        val profileId = _profileSessionState.value.selected?.id ?: return
         val listSetting = currentListSetting ?: return
         if (!listSetting.allowsCustomInput) return
 
@@ -565,6 +725,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val success = apiRepository.addCustomListItem(listSetting.apiPage, cleanDomain) is ApiRepository.AddListResult.Success
             if (!success) {
+                if (_profileSessionState.value.selected?.id != profileId || currentListSetting != listSetting) {
+                    return@launch
+                }
                 _availableItems.value = _availableItems.value.filter { it.id != cleanDomain }
                 _activeListIds.value -= cleanDomain
                 _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_add, cleanDomain))
@@ -573,6 +736,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun deleteCustomDomain(domain: String) {
+        if (!_profileSessionState.value.capabilities.canEditSettings) return
+        val profileId = _profileSessionState.value.selected?.id ?: return
         val listSetting = currentListSetting ?: return
         if (!listSetting.allowsCustomInput) return
 
@@ -584,6 +749,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val success = apiRepository.removeCustomListItem(listSetting.apiPage, domain)
             if (!success) {
+                if (_profileSessionState.value.selected?.id != profileId || currentListSetting != listSetting) {
+                    return@launch
+                }
                 _availableItems.value = listOf(NextDnsResourceItem(id = domain, name = domain)) + _availableItems.value
                 if (wasActive) _activeListIds.value += domain
                 _errorMessage.emit(getApplication<Application>().getString(R.string.failed_to_delete, domain))

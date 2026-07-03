@@ -45,6 +45,48 @@ object Locales {
         return (current as? String) ?: missing(path)
     }
 
+    fun getPlainString(
+        path: Array<out String>,
+        values: Map<String, String> = emptyMap(),
+    ): String {
+        val input = getString(*path)
+        val builder = StringBuilder()
+        var i = 0
+        while (i < input.length) {
+            val char = input[i]
+            when {
+                char == '{' && i + 1 < input.length && input[i + 1] == '{' -> {
+                    val end = input.indexOf("}}", i + 2)
+                    if (end != -1) {
+                        val key = input.substring(i + 2, end)
+                        builder.append(values[key].orEmpty())
+                        i = end + 2
+                    } else {
+                        builder.append(char)
+                        i++
+                    }
+                }
+                char == '<' -> {
+                    var j = i + 1
+                    if (j < input.length && input[j] == '/') j++
+                    val startDigits = j
+                    while (j < input.length && input[j].isDigit()) j++
+                    if (j > startDigits && j < input.length && input[j] == '>') {
+                        i = j + 1
+                    } else {
+                        builder.append(char)
+                        i++
+                    }
+                }
+                else -> {
+                    builder.append(char)
+                    i++
+                }
+            }
+        }
+        return builder.toString()
+    }
+
 
     // for getting lists of items from merged.json, for example, native tracker systems
     @Suppress("UNCHECKED_CAST")

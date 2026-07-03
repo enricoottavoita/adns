@@ -43,11 +43,6 @@ class LogsViewModel(application: Application) :  AndroidViewModel(application) {
     private val _uiEvent = MutableSharedFlow<String>()
     val uiEvent = _uiEvent.asSharedFlow()
 
-    init {
-        loadDevices()
-        loadInitialLogs()
-    }
-
     private fun loadDevices() {
         viewModelScope.launch {
             devicesList = apiRepository.getNextDnsDevices()
@@ -126,6 +121,11 @@ class LogsViewModel(application: Application) :  AndroidViewModel(application) {
 
     fun setBlocked(blocked: Boolean) {
         blockedSelected = blocked
+        loadInitialLogs()
+    }
+
+    fun refresh() {
+        loadDevices()
         loadInitialLogs()
     }
 }

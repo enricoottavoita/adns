@@ -21,10 +21,10 @@ fun Response<JsonObject>.toJsonApiResult(): ApiResult<JsonObject> {
     }
 }
 
-fun Response<JsonObject>.toEmptyApiResult(): ApiResult<Unit> {
+fun Response<*>.toEmptyApiResult(): ApiResult<Unit> {
     if (!isSuccessful) return toServerFailure()
 
-    val problems = body()?.let(NextDnsErrorParser::parse).orEmpty()
+    val problems = (body() as? JsonObject)?.let(NextDnsErrorParser::parse).orEmpty()
     return if (problems.isNotEmpty()) {
         ApiResult.ServerFailure(code(), problems, requestId())
     } else {

@@ -9,9 +9,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -39,11 +39,12 @@ import com.eyalm.adns.viewmodel.AccessViewModel
 
 @Composable
 fun AccessSection(
-    viewModel: AccessViewModel = viewModel(),
+    profileId: String,
 ) {
+    val viewModel: AccessViewModel = viewModel(key = "access-$profileId")
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(profileId) {
         viewModel.load()
     }
 

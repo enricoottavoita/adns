@@ -2,6 +2,7 @@ package com.eyalm.adns.data
 
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import android.util.Log.e
 import com.eyalm.adns.R
@@ -34,6 +35,8 @@ import com.eyalm.adns.data.nextdns.recreation.RecreationItemCollection
 import com.eyalm.adns.data.nextdns.recreation.RecreationScheduleDto
 import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationItemRequest
 import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationScheduleRequest
+import com.eyalm.adns.data.nextdns.logs.LogExportResult
+import com.eyalm.adns.data.nextdns.profile.toDuplicateProfilePayload
 import com.eyalm.adns.data.nextdns.settings.ApiBinding
 import com.eyalm.adns.data.nextdns.settings.nestedPayload
 import com.eyalm.adns.domain.nextdns.ApiResult
@@ -42,6 +45,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import retrofit2.Response
@@ -163,14 +167,34 @@ class ApiRepository(private val context: Context) {
 
 
     suspend fun getNextDnsProfiles(): List<NextDnsProfile> {
-        requireSignedIn()
-        return try {
-            val response = ApiClient.nextDnsApi.getProfiles()
-            response.data
-        } catch (e: Exception) {
-            e("ApiRepository", "Error fetching profiles", e)
-            emptyList()
+        return when (val result = getNextDnsProfilesResult()) {
+            is ApiResult.Success -> result.value
+            else -> emptyList()
         }
+    }
+
+    suspend fun getNextDnsProfilesResult(): ApiResult<List<NextDnsProfile>> = try {
+        requireSignedIn()
+        when (val result = ApiClient.nextDnsApi.getProfilesRaw().toJsonApiResult()) {
+            is ApiResult.Success -> {
+                val data = result.value.getAsJsonArray("data")
+                    ?: return ApiResult.SerializationFailure(
+                        IllegalStateException("Missing profiles data")
+                    )
+                ApiResult.Success(
+                    gson.fromJson(data, Array<NextDnsProfile>::class.java).toList(),
+                    result.status,
+                )
+            }
+
+            is ApiResult.ServerFailure -> result
+            is ApiResult.NetworkFailure -> result
+            is ApiResult.SerializationFailure -> result
+        }
+    } catch (error: IOException) {
+        ApiResult.NetworkFailure(error)
+    } catch (error: Exception) {
+        ApiResult.SerializationFailure(error)
     }
 
     fun setNextDnsProfile(profile: NextDnsProfile, deviceName: String? = null) {
@@ -468,6 +492,7 @@ class ApiRepository(private val context: Context) {
     }
 
     private val gson = Gson()
+
     private suspend fun <T> profileCall( // TODO migrate other methods
         block: suspend (profileId: String) -> ApiResult<T>,
     ): ApiResult<T> = try {
@@ -478,6 +503,124 @@ class ApiRepository(private val context: Context) {
         } catch (error: Exception) {
             ApiResult.SerializationFailure(error)
         }
+
+    private suspend fun <T> profileCall(
+        profileId: String,
+        block: suspend () -> ApiResult<T>,
+    ): ApiResult<T> = try {
+        requireSignedIn()
+        block()
+    } catch (error: IOException) {
+        ApiResult.NetworkFailure(error)
+    } catch (error: Exception) {
+        ApiResult.SerializationFailure(error)
+    }
+
+    suspend fun clearLogs(profileId: String): ApiResult<Unit> = profileCall(profileId) {
+        ApiClient.nextDnsApi.clearLogs(profileId).toEmptyApiResult()
+    }
+
+    suspend fun exportLogs(profileId: String, destination: Uri): LogExportResult = withContext(Dispatchers.IO) {
+        val response = try {
+            requireSignedIn()
+            ApiClient.nextDnsApi.downloadLogs(profileId)
+        } catch (error: IOException) {
+            return@withContext LogExportResult.ApiFailure(ApiResult.NetworkFailure(error))
+        } catch (error: Exception) {
+            return@withContext LogExportResult.ApiFailure(ApiResult.SerializationFailure(error))
+        }
+
+        if (!response.isSuccessful) {
+            return@withContext LogExportResult.ApiFailure(response.toServerFailure())
+        }
+
+        val body = response.body()
+            ?: return@withContext LogExportResult.ApiFailure(
+                ApiResult.SerializationFailure(IllegalStateException("Missing logs download body"))
+            )
+
+        try {
+            body.byteStream().use { input ->
+                context.contentResolver.openOutputStream(destination)?.use { output ->
+                    input.copyTo(output)
+                } ?: return@withContext LogExportResult.DestinationFailure(
+                    IllegalStateException("Unable to open export destination")
+                )
+            }
+            LogExportResult.Success
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            LogExportResult.DestinationFailure(error)
+        }
+    }
+
+    suspend fun getProfileDetail(profileId: String): ApiResult<JsonObject> = profileCall(profileId) {
+        when (val result = ApiClient.nextDnsApi.getProfileDetail(profileId).toJsonApiResult()) {
+            is ApiResult.Success -> {
+                try {
+                    val data = result.value.getAsJsonObject("data")
+                        ?: return@profileCall ApiResult.SerializationFailure(
+                            IllegalStateException("Missing profile detail data")
+                        )
+                    ApiResult.Success(data, result.status)
+                } catch (error: Exception) {
+                    ApiResult.SerializationFailure(error)
+                }
+            }
+
+            is ApiResult.ServerFailure -> result
+            is ApiResult.NetworkFailure -> result
+            is ApiResult.SerializationFailure -> result
+        }
+    }
+
+    suspend fun duplicateProfile(profileId: String, newName: String): ApiResult<NextDnsProfile> {
+        val detail = getProfileDetail(profileId)
+        if (detail !is ApiResult.Success) {
+            return when (detail) {
+                is ApiResult.ServerFailure -> detail
+                is ApiResult.NetworkFailure -> detail
+                is ApiResult.SerializationFailure -> detail
+                is ApiResult.Success -> error("Handled above")
+            }
+        }
+
+        return profileCall(profileId) {
+            when (
+                val result = ApiClient.nextDnsApi
+                    .duplicateProfile(detail.value.toDuplicateProfilePayload(newName))
+                    .toJsonApiResult()
+            ) {
+                is ApiResult.Success -> {
+                    try {
+                        val data = result.value.getAsJsonObject("data")
+                            ?: return@profileCall ApiResult.SerializationFailure(
+                                IllegalStateException("Missing duplicated profile data")
+                            )
+                        ApiResult.Success(gson.fromJson(data, NextDnsProfile::class.java), result.status)
+                    } catch (error: Exception) {
+                        ApiResult.SerializationFailure(error)
+                    }
+                }
+
+                is ApiResult.ServerFailure -> result
+                is ApiResult.NetworkFailure -> result
+                is ApiResult.SerializationFailure -> result
+            }
+        }
+    }
+
+    suspend fun renameProfile(profileId: String, newName: String): ApiResult<Unit> = profileCall(profileId) {
+        ApiClient.nextDnsApi.renameProfile(
+            profileId,
+            JsonObject().apply { addProperty("name", newName.trim()) },
+        ).toEmptyApiResult()
+    }
+
+    suspend fun deleteOrLeaveProfile(profileId: String): ApiResult<Unit> = profileCall(profileId) {
+        ApiClient.nextDnsApi.deleteOrLeaveProfile(profileId).toEmptyApiResult()
+    }
 
     suspend fun getRewrites(): ApiResult<List<Rewrite>> = profileCall { profileId ->
         when (val result = ApiClient.nextDnsApi.getRewrites(profileId).toJsonApiResult()) {
@@ -531,6 +674,13 @@ class ApiRepository(private val context: Context) {
             is ApiResult.ServerFailure -> result
             is ApiResult.NetworkFailure -> result
             is ApiResult.SerializationFailure -> result
+        }
+    }
+
+    fun clearSelectedNextDnsProfile() {
+        sharedPrefs.edit().remove("enhanced_url").apply()
+        if (repository.getSelectedProvider().id == DnsProviders.NEXTDNS.id) {
+            repository.setProvider(DnsProviders.ADGUARD.id)
         }
     }
 

@@ -57,13 +57,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.R
-import com.eyalm.adns.data.nextdns.model.ListIcon
 import com.eyalm.adns.data.network.toHexId
+import com.eyalm.adns.data.nextdns.model.ListIcon
 import com.eyalm.adns.ui.components.ExpressiveIcon
 import com.eyalm.adns.ui.components.ExpressiveListItem
 import com.eyalm.adns.ui.components.ListIconView
 import com.eyalm.adns.ui.screens.SettingsCategoryScreenTemplate
 import com.eyalm.adns.viewmodel.LogsViewModel
+import com.eyalm.adns.viewmodel.ProfileSessionState
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -72,14 +73,20 @@ import java.time.format.FormatStyle
 @Composable
 fun LogsScreen(
     onBack: () -> Unit,
-    viewModel: LogsViewModel = viewModel()
+    profileState: ProfileSessionState,
 ) {
+    val profileId = profileState.selected?.id ?: return
+    val viewModel: LogsViewModel = viewModel(key = "logs-$profileId")
     val context = LocalContext.current
     val items = viewModel.logsList
     val devices = viewModel.devicesList
 
-    var showConfig by remember { mutableStateOf(true) }
-    var expandedId by remember { mutableStateOf<Int?>(null) }
+    var showConfig by remember(profileId) { mutableStateOf(true) }
+    var expandedId by remember(profileId) { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(profileId, profileState.logsRevision) {
+        viewModel.refresh()
+    }
 
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collect { message ->
