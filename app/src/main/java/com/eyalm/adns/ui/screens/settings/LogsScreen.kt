@@ -75,7 +75,7 @@ fun LogsScreen(
     onBack: () -> Unit,
     profileState: ProfileSessionState,
 ) {
-    val profileId = profileState.selected?.id ?: return
+    val profileId = profileState.selectedProfileId ?: return
     val viewModel: LogsViewModel = viewModel(key = "logs-$profileId")
     val context = LocalContext.current
     val items = viewModel.logsList

@@ -1,10 +1,10 @@
 package com.eyalm.adns.data.network
 
-import com.eyalm.adns.data.nextdns.rewrites.CreateRewriteRequest
 import com.eyalm.adns.data.nextdns.access.InviteAccessRequest
 import com.eyalm.adns.data.nextdns.access.UpdateAccessRoleRequest
 import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationItemRequest
 import com.eyalm.adns.data.nextdns.recreation.UpdateRecreationScheduleRequest
+import com.eyalm.adns.data.nextdns.rewrites.CreateRewriteRequest
 import com.google.gson.JsonObject
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -252,5 +252,12 @@ interface NextDnsApi {
         @Path("hexId") hexId: String,
         @Body request: UpdateRecreationItemRequest,
     ): Response<JsonObject>
+
+
+    @GET("profiles/{profileId}/setup")
+    suspend fun getSetup(
+        @Path("profileId") profileId: String,
+    ): Response<JsonObject>
+
 
 }

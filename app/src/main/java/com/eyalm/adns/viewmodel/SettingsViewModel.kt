@@ -71,6 +71,8 @@ data class ScalarSettingsUiState(
 data class ProfileSessionState(
     val loading: Boolean = true,
     val profiles: List<NextDnsProfile> = emptyList(),
+    /** The locally configured profile, available even before the profile list can be refreshed. */
+    val selectedProfileId: String? = null,
     val selected: NextDnsProfile? = null,
     val capabilities: ProfileCapabilities = ProfileRole.Unknown.capabilities(),
     val logsRevision: Long = 0,
@@ -88,6 +90,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         MAIN,
         PROVIDERS,
         ACCOUNT_SETTINGS,
+        SETUP,
         SECURITY,
         PRIVACY,
         PARENTAL_CONTROL,
@@ -106,11 +109,32 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _notificationsEnabled = MutableStateFlow(repository.isNotificationEnabled())
     val notificationsEnabled = _notificationsEnabled.asStateFlow()
 
-    private val _profileSessionState = MutableStateFlow(ProfileSessionState())
+    private val _profileSessionState = MutableStateFlow(
+        ProfileSessionState(
+            selectedProfileId = apiRepository.getCurrentNextDnsProfileId(),
+        )
+    )
     val profileSessionState = _profileSessionState.asStateFlow()
 
     fun refreshProfileSession() {
-        _profileSessionState.value = _profileSessionState.value.copy(loading = true, error = null)
+        val previous = _profileSessionState.value
+        val selectedProfileId = apiRepository.getCurrentNextDnsProfileId()
+        val selected = previous.selected?.takeIf { it.id == selectedProfileId }
+        val profileChanged = previous.selectedProfileId != selectedProfileId
+        if (profileChanged) {
+            invalidateProfileScopedState()
+            if (_page.value == Page.GENERIC_LIST) {
+                setPage(Page.MAIN)
+            }
+        }
+        _profileSessionState.value = previous.copy(
+            loading = true,
+            selectedProfileId = selectedProfileId,
+            selected = selected,
+            capabilities = profileRoleFromWire(selected?.role).capabilities(),
+            logsRevision = previous.logsRevision + if (profileChanged) 1 else 0,
+            error = null,
+        )
         viewModelScope.launch {
             when (val result = apiRepository.getNextDnsProfilesResult()) {
                 is ApiResult.Success -> publishProfileSession(result.value)
@@ -156,20 +180,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun publishProfileSession(availableProfiles: List<NextDnsProfile>) {
         val previous = _profileSessionState.value
-        val selectedId = apiRepository.getCurrentNextDnsProfileId()
-        val selected = availableProfiles.firstOrNull { it.id == selectedId }
-        val profileChanged = previous.selected?.id != selected?.id
+        val locallySelectedId = apiRepository.getCurrentNextDnsProfileId()
+        val selected = availableProfiles.firstOrNull { it.id == locallySelectedId }
+        val selectedProfileId = selected?.id
+        val profileChanged = previous.selectedProfileId != selectedProfileId
         if (profileChanged) {
             invalidateProfileScopedState()
             if (_page.value == Page.GENERIC_LIST) {
                 setPage(Page.MAIN)
             }
         }
-        profiles = availableProfiles
-        currentProfile = selected
         _profileSessionState.value = ProfileSessionState(
             loading = false,
             profiles = availableProfiles,
+            selectedProfileId = selectedProfileId,
             selected = selected,
             capabilities = profileRoleFromWire(selected?.role).capabilities(),
             logsRevision = previous.logsRevision + if (profileChanged) 1 else 0,
@@ -272,37 +296,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
 
 
-
-
-    var profiles by mutableStateOf<List<NextDnsProfile>?>(null)
     var email by mutableStateOf<String?>(null)
-    var currentProfile by mutableStateOf<NextDnsProfile?>(null)
     var nextDnsDeviceName by mutableStateOf(apiRepository.getNextDnsDeviceName())
         private set
-
-
-    suspend fun getProfiles(): List<NextDnsProfile> {
-        return apiRepository.getNextDnsProfiles()
-    }
-
-    suspend fun getCurrentProfile(): NextDnsProfile? {
-        val profileId = apiRepository.getCurrentNextDnsProfileId()
-        val currentProfiles = profiles ?: apiRepository.getNextDnsProfiles()
-        return currentProfiles.firstOrNull { it.id == profileId }
-    }
 
     fun setProfile(profile: NextDnsProfile) {
         val currentName = apiRepository.getNextDnsDeviceName()
         val nameToSet = currentName.ifEmpty { "ADNS" }
         apiRepository.setNextDnsProfile(profile, nameToSet)
         nextDnsDeviceName = apiRepository.getNextDnsDeviceName()
-        val knownProfiles = _profileSessionState.value.profiles.ifEmpty { profiles.orEmpty() }
+        val knownProfiles = _profileSessionState.value.profiles
         val updatedProfiles = if (knownProfiles.any { it.id == profile.id }) {
             knownProfiles.map { if (it.id == profile.id) profile else it }
         } else {
             knownProfiles + profile
         }
-        profiles = updatedProfiles
         publishProfileSession(updatedProfiles)
         refreshProvider()
         refreshProfileSession()

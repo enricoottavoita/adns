@@ -106,8 +106,6 @@ class MainActivity : ComponentActivity() {
             if (settingsViewModel.selectedProvider.value is DnsProvider.Enhanced) {
                 settingsViewModel.refreshProfileSession()
                 settingsViewModel.email = settingsViewModel.getEmail()
-                settingsViewModel.profiles = settingsViewModel.getProfiles()
-                settingsViewModel.currentProfile = settingsViewModel.getCurrentProfile()
             }
         }
 

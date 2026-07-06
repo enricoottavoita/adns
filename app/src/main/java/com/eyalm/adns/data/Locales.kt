@@ -34,15 +34,7 @@ object Locales {
     // Locales.getString("security", "feeds", "name")
     // "Threat Intelligence Feeds"
     fun getString(vararg path: String): String {
-        var current: Any? = data
-        for (key in path) {
-            if (current is Map<*, *>) {
-                current = current[key]
-            } else {
-                return missing(path)
-            }
-        }
-        return (current as? String) ?: missing(path)
+        return (getNode(*path) as? String) ?: missing(path)
     }
 
     fun getPlainString(
@@ -91,6 +83,10 @@ object Locales {
     // for getting lists of items from merged.json, for example, native tracker systems
     @Suppress("UNCHECKED_CAST")
     fun getMap(vararg path: String): Map<String, Any>? {
+        return getNode(*path) as? Map<String, Any>
+    }
+
+    fun getNode(vararg path: String): Any? {
         var current: Any? = data
         for (key in path) {
             if (current is Map<*, *>) {
@@ -99,6 +95,6 @@ object Locales {
                 return null
             }
         }
-        return current as? Map<String, Any>
+        return current
     }
 }

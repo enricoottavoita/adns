@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BroadcastOnPersonal
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
@@ -83,6 +84,7 @@ fun MainSettingsScreen(
 
 
     val onAccountSettingsClick = remember(onPageChange) { { onPageChange(Page.ACCOUNT_SETTINGS) } }
+    val onSetupClick = remember(onPageChange) { { onPageChange(Page.SETUP) } }
     val onProvidersClick = remember(onPageChange) { { onPageChange(Page.PROVIDERS) } }
     val onSecurityClick = remember(onPageChange) { { onPageChange(Page.SECURITY) } }
     val onPrivacyClick = remember(onPageChange) { { onPageChange(Page.PRIVACY) } }
@@ -182,12 +184,19 @@ fun MainSettingsScreen(
                             modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
                         )
                         ExpressiveListItem(
+                            title = stringResource(R.string.setup_another_device),
+                            description = stringResource(R.string.setup_nextdns_on_another_device),
+                            onClick = onSetupClick,
+                            icon = Icons.Filled.Devices,
+                            secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            isFirst = true,
+                        )
+                        ExpressiveListItem(
                             title = stringResource(R.string.security),
                             description = stringResource(R.string.threat_protection_dns_rebinding_tlds),
                             onClick = onSecurityClick,
                             icon = Icons.Filled.Security,
                             secondIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            isFirst = true
                         )
                         ExpressiveListItem(
                             title = stringResource(R.string.privacy),

@@ -10,10 +10,11 @@ class NextDnsApiKeyInterceptorTest {
     fun `returns key only for an allowed host`() {
         val interceptor = NextDnsApiKeyInterceptor(
             apiKeyProvider = { "test-api-key" },
-            allowedHosts = setOf("api.nextdns.io"),
+            allowedHosts = setOf("api.nextdns.io", "ipv4.api.nextdns.io"),
         )
 
         assertEquals("test-api-key", interceptor.apiKeyForHost("api.nextdns.io"))
+        assertEquals("test-api-key", interceptor.apiKeyForHost("ipv4.api.nextdns.io"))
         assertNull(interceptor.apiKeyForHost("link-ip.nextdns.io"))
         assertNull(interceptor.apiKeyForHost("example.test"))
     }

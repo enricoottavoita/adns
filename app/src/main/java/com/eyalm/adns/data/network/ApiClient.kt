@@ -11,6 +11,8 @@ object ApiClient {
 
     private const val API_BASE_URL = "https://api.nextdns.io/"
     private const val API_HOST = "api.nextdns.io"
+    private const val IPV4_API_BASE_URL = "https://ipv4.api.nextdns.io/"
+    private const val IPV4_API_HOST = "ipv4.api.nextdns.io"
     private const val LINK_IP_BASE_URL = "https://link-ip.nextdns.io/"
     private const val USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
@@ -18,6 +20,7 @@ object ApiClient {
             "Chrome/148.0.0.0 Safari/537.36"
 
     private lateinit var nextDnsApiInternal: NextDnsApi
+    private lateinit var nextDnsIpv4ApiInternal: NextDnsIpv4Api
     private lateinit var nextDnsAuthApiInternal: NextDnsAuthApi
     private lateinit var nextDnsLinkIpApiInternal: NextDnsLinkIpApi
 
@@ -53,7 +56,7 @@ object ApiClient {
             .addNetworkInterceptor(
                 NextDnsApiKeyInterceptor(
                     apiKeyProvider = tokenManager::getApiKey,
-                    allowedHosts = setOf(API_HOST),
+                    allowedHosts = setOf(API_HOST, IPV4_API_HOST),
                 )
             )
             .build()
@@ -70,6 +73,8 @@ object ApiClient {
 
         nextDnsApiInternal = retrofit(API_BASE_URL, authenticatedClient)
             .create(NextDnsApi::class.java)
+        nextDnsIpv4ApiInternal = retrofit(IPV4_API_BASE_URL, authenticatedClient)
+            .create(NextDnsIpv4Api::class.java)
         nextDnsAuthApiInternal = retrofit(API_BASE_URL, authFlowClient)
             .create(NextDnsAuthApi::class.java)
         nextDnsLinkIpApiInternal = retrofit(LINK_IP_BASE_URL, baseClient)
@@ -85,6 +90,9 @@ object ApiClient {
 
     val nextDnsApi: NextDnsApi
         get() = initialized { nextDnsApiInternal }
+
+    val nextDnsIpv4Api: NextDnsIpv4Api
+        get() = initialized { nextDnsIpv4ApiInternal }
 
     val nextDnsAuthApi: NextDnsAuthApi
         get() = initialized { nextDnsAuthApiInternal }

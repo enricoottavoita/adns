@@ -38,6 +38,7 @@ import com.eyalm.adns.ui.screens.settings.ProfileActionsSection
 import com.eyalm.adns.ui.screens.settings.ProvidersScreen
 import com.eyalm.adns.ui.screens.settings.RecreationSection
 import com.eyalm.adns.ui.screens.settings.RewritesSection
+import com.eyalm.adns.ui.screens.settings.SetupScreen
 import com.eyalm.adns.viewmodel.SettingsViewModel
 
 @Composable
@@ -126,6 +127,17 @@ fun SettingsTabRouter(
                 AccountSettingsScreen(
                     onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) },
                     provider = selectedProvider
+                )
+            }
+            SettingsViewModel.Page.SETUP -> {
+                BackHandler { viewModel.setPage(SettingsViewModel.Page.MAIN) }
+                SetupScreen(
+                    profileId = profileSession.selectedProfileId,
+                    canManageLinkedIp = profileSession.capabilities.canEditSettings,
+                    onBack = { viewModel.setPage(SettingsViewModel.Page.MAIN) },
+                    onSelectProfile = {
+                        viewModel.setPage(SettingsViewModel.Page.ACCOUNT_SETTINGS)
+                    },
                 )
             }
             SettingsViewModel.Page.SECURITY -> {
