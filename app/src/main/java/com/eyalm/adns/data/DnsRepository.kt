@@ -24,7 +24,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 class DnsRepository(rawContext: Context) {
@@ -39,51 +41,60 @@ class DnsRepository(rawContext: Context) {
     }
 
     fun isAdBlockingActive(): Boolean {
-        return try {
-            val mode = Settings.Global.getString(resolver, DnsConstants.MODE_KEY)
-            val host = Settings.Global.getString(resolver, DnsConstants.SPECIFIER_KEY)
-
-            mode == DnsConstants.MODE_HOSTNAME && host == getDnsUrl()
-        } catch (e: SecurityException) {
-            Log.e("DnsRepository", "Permission denied checking DNS settings", e)
-            return false
-        }
+        return isSelectedPrivateDnsActive(readPrivateDnsObservation(), getDnsUrl())
     }
 
-    fun getDnsStatusFlow(): Flow<Boolean> = callbackFlow {
-
+    private fun observePrivateDns(): Flow<PrivateDnsObservation> = callbackFlow {
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
-                val isActive = isAdBlockingActive()
-                if (!isActive) {
-                    saveStartTime(0L)
-                } else if (isActive && getStartTime() == 0L) {
-                    saveStartTime(System.currentTimeMillis())
-                }
-                
-                repositoryScope.launch {
-                    updateShortcuts()
-                    updateNotification()
-                }
-                trySend(isActive)
+                trySend(readPrivateDnsObservation())
             }
         }
 
         resolver.registerContentObserver(Settings.Global.getUriFor(DnsConstants.MODE_KEY), false, observer)
         resolver.registerContentObserver(Settings.Global.getUriFor(DnsConstants.SPECIFIER_KEY), false, observer)
 
-        val initialActive = isAdBlockingActive()
-        repositoryScope.launch {
-            updateShortcuts()
-            updateNotification()
-        }
-        trySend(initialActive)
+        trySend(readPrivateDnsObservation())
 
         awaitClose {
             resolver.unregisterContentObserver(observer)
         }
 
     }.distinctUntilChanged()
+
+    fun getDnsStatusFlow(): Flow<Boolean> = combine(
+        observePrivateDns(),
+        getDnsUrlFlow(),
+    ) { observation, selectedHostname ->
+        isSelectedPrivateDnsActive(observation, selectedHostname)
+    }.distinctUntilChanged().onEach { isActive ->
+        if (!isActive) {
+            saveStartTime(0L)
+        } else if (getStartTime() == 0L) {
+            saveStartTime(System.currentTimeMillis())
+        }
+        repositoryScope.launch {
+            updateShortcuts()
+            updateNotification()
+        }
+    }
+
+    private fun readPrivateDnsObservation(): PrivateDnsObservation = try {
+        val mode = Settings.Global.getString(resolver, DnsConstants.MODE_KEY)
+        val hostname = Settings.Global.getString(resolver, DnsConstants.SPECIFIER_KEY)
+        when (mode) {
+            DnsConstants.MODE_HOSTNAME -> hostname
+                ?.takeIf(String::isNotBlank)
+                ?.let(PrivateDnsObservation::Hostname)
+                ?: PrivateDnsObservation.Off
+
+            DnsConstants.MODE_AUTOMATIC -> PrivateDnsObservation.Automatic
+            else -> PrivateDnsObservation.Off
+        }
+    } catch (error: SecurityException) {
+        Log.e("DnsRepository", "Permission denied checking DNS settings", error)
+        PrivateDnsObservation.PermissionMissing
+    }
 
 
     fun setAdBlockingState(enabled: Boolean): kotlinx.coroutines.Job {

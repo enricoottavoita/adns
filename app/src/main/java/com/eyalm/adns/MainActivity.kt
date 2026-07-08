@@ -63,6 +63,8 @@ import com.eyalm.adns.data.DnsRepository
 import com.eyalm.adns.data.LocaleHelper
 import com.eyalm.adns.data.models.DnsProvider
 import com.eyalm.adns.data.models.DnsProviders
+import com.eyalm.adns.data.nextdns.auth.NextDnsSessionManager
+import com.eyalm.adns.ui.components.dialogs.BaseDialog
 import com.eyalm.adns.ui.screens.HomeScreen
 import com.eyalm.adns.ui.screens.SettingsTabRouter
 import com.eyalm.adns.ui.screens.StatsScreen
@@ -203,6 +205,24 @@ fun Greeting(
             context.startActivity(intent)
         }
     }
+    val nextDnsSessionManager = remember(context) {
+        NextDnsSessionManager.getInstance(context.applicationContext)
+    }
+    val reauthenticationRequested by nextDnsSessionManager.reauthenticationRequested.collectAsState()
+
+    if (reauthenticationRequested) {
+        BaseDialog(
+            title = stringResource(R.string.nextdns_session_expired_title),
+            body = stringResource(R.string.nextdns_session_expired_message),
+            confirmLabel = stringResource(R.string.sign_in),
+            destructive = false,
+            onConfirm = {
+                nextDnsSessionManager.dismissReauthenticationRequest()
+                onNavigateToProviders(DnsProviders.NEXTDNS.id)
+            },
+            onDismiss = nextDnsSessionManager::dismissReauthenticationRequest,
+        )
+    }
     val latestVersion = remember { mutableStateOf<String?>(null) }
 
     val settingsViewModel: SettingsViewModel = viewModel()
@@ -215,7 +235,11 @@ fun Greeting(
             Log.d("Permission", "Permission Granted")
         } else {
             settingsViewModel.setNotificationsEnabled(false)
-            Toast.makeText(context, "Notification permission denied.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                R.string.notification_permission_denied,
+                Toast.LENGTH_SHORT,
+            ).show()
         }
     }
 
@@ -260,7 +284,14 @@ fun Greeting(
                             },
                             label = { Text(item) },
                             selected = selectedItem == index,
-                            onClick = { selectedItem = index },
+                            onClick = {
+                                if (
+                                    index != 1 ||
+                                    nextDnsSessionManager.requestFeatureAccess()
+                                ) {
+                                    selectedItem = index
+                                }
+                            },
                         )
                     }
 

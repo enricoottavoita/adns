@@ -2,13 +2,13 @@ package com.eyalm.adns.data
 
 import com.eyalm.adns.data.nextdns.model.ListIcon
 import com.eyalm.adns.data.nextdns.model.countryFlag
+import com.eyalm.adns.data.nextdns.model.nextDnsFaviconUrl
 
 import android.icu.text.NumberFormat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.Wifi
-import com.eyalm.adns.data.network.toHexId
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import java.util.Locale
@@ -29,7 +29,7 @@ internal fun parseList(card: ListCard, data: JsonArray): List<StatRow> = when (c
         StatRow(
             id = d, title = d, highlightDomain = true,
             value = fmt(o.int("queries")),
-            icon = ListIcon.Url("https://favicons.nextdns.io/${d.toHexId()}@3x.png")
+            icon = nextDnsFaviconUrl(d)?.let(ListIcon::Url) ?: ListIcon.None,
         )
     }
 

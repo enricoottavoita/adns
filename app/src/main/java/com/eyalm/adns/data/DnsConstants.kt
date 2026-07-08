@@ -6,5 +6,6 @@ object DnsConstants {
 
     const val MODE_HOSTNAME = "hostname"
     const val MODE_OFF = "off"
+    const val MODE_AUTOMATIC = "opportunistic"
     const val ADGUARD_DNS = "dns.adguard-dns.com"
 }

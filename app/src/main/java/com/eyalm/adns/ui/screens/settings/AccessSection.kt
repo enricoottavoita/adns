@@ -40,11 +40,12 @@ import com.eyalm.adns.viewmodel.AccessViewModel
 @Composable
 fun AccessSection(
     profileId: String,
+    refreshRevision: Long = 0,
 ) {
     val viewModel: AccessViewModel = viewModel(key = "access-$profileId")
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(profileId) {
+    LaunchedEffect(profileId, refreshRevision) {
         viewModel.load()
     }
 

@@ -63,28 +63,14 @@ interface NextDnsApi {
         @Path("profileId") profileId: String,
     ): Response<Unit>
 
-    @GET("profiles/{profileId}/analytics/status")
-    suspend fun getAnalytics(
-        @Path("profileId") profileId: String,
-        @Query("from") period: String
-    ): NextDnsAnalytics
-
     @GET("profiles/{profileId}/analytics/status;series")
     suspend fun getStatsGraph(
         @Path("profileId") profileId: String,
         @Query("from") period: String,
         @Query("alignment") alignment: String = "start",
-        @Query("timezone") timezone: String
-    ): NextDnsStatsGraphResponse
-
-    @GET("profiles/{profileId}/analytics/domains") // ?status=default%2Callowed&from=-30d&limit=6
-    suspend fun getDomains(
-        @Path("profileId") profileId: String,
-        @Query("status") status: String, // "default,allowed," or "blocked"
-        @Query("from") period: String,
-        @Query("limit") limit: Int
-    ): NextDnsDomainsResponse
-
+        @Query("timezone") timezone: String,
+        @Query("device") device: String? = null,
+    ): Response<NextDnsStatsGraphResponse>
 
     // NEW GENERIC ENDPOINTS
 
@@ -108,14 +94,14 @@ interface NextDnsApi {
         @Path("profileId") profileId: String,
         @Path("page") page: String,
         @Path("feat") feat: String
-    ): JsonObject
+    ): Response<JsonObject>
 
     // get the available catalog for server lists
     @GET("{page}/{feat}")
     suspend fun getAvailableCatalog(
         @Path("page") page: String,
         @Path("feat") feat: String
-    ): JsonObject
+    ): Response<JsonObject>
 
     // add an item to a list
     @POST("profiles/{profileId}/{page}/{feat}")
@@ -142,7 +128,7 @@ interface NextDnsApi {
         @Path("profileId") profileId: String,
         @Path("page") page: String,
         @Body payload: Map<String, String>
-    ): Response<Unit>
+    ): Response<JsonObject>
 
     @PATCH("profiles/{profileId}/{page}/{hexId}")
     suspend fun patchCustomItem(
@@ -166,7 +152,7 @@ interface NextDnsApi {
         @Path("profileId") profileId: String,
         @Path("feature") feature: String,
         @QueryMap params: Map<String, String>
-    ): JsonObject
+    ): Response<JsonObject>
 
 
     @GET("profiles/{profileId}/logs")
@@ -178,14 +164,14 @@ interface NextDnsApi {
         @Query("search") search: String? = null,
         @Query("raw") raw: Int? = null,          // 1 = raw
         @Query("limit") limit: Int? = 100
-    ): NextDnsLogsResponse
+    ): Response<NextDnsLogsResponse>
 
     @GET("profiles/{profileId}/analytics/devices")
     suspend fun getDevices(
         @Path("profileId") profileId: String,
         @Query("from") from: String = "-3M",
         @Query("limit") limit: Int = 200
-    ): NextDnsDevicesResponse
+    ): Response<NextDnsDevicesResponse>
 
     // rewrites
 

@@ -1,7 +1,4 @@
 package com.eyalm.adns.ui.screens
-import com.eyalm.adns.R
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalContext
 
 
 import android.icu.text.NumberFormat
@@ -24,33 +21,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.animation.core.InfiniteRepeatableSpec
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +51,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -69,12 +61,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.eyalm.adns.R
 import com.eyalm.adns.data.ListCard
-import com.eyalm.adns.data.nextdns.model.ListIcon
+import com.eyalm.adns.data.Locales
 import com.eyalm.adns.data.PercentCard
 import com.eyalm.adns.data.StatsRegistry
+import com.eyalm.adns.data.network.NextDnsDeviceItem
 import com.eyalm.adns.data.network.NextDnsDomainData
-import com.eyalm.adns.data.network.toHexId
+import com.eyalm.adns.data.nextdns.analytics.AnalyticsPeriod
+import com.eyalm.adns.data.nextdns.model.ListIcon
+import com.eyalm.adns.data.nextdns.model.nextDnsFaviconUrl
+import com.eyalm.adns.ui.components.AdnsPullToRefresh
 import com.eyalm.adns.ui.components.GenericStatsListCard
 import com.eyalm.adns.ui.components.GenericStatsPercentCard
 import com.eyalm.adns.ui.components.ListIconView
@@ -89,61 +86,19 @@ fun StatsScreen(
     modifier: Modifier = Modifier,
     statsViewModel: StatsViewModel = viewModel(),
 ) {
-    val context = LocalContext.current
-    val filterOptions = remember(context) { listOf(context.getString(R.string.s_24_hours), context.getString(R.string.s_7_days), context.getString(R.string.s_30_days)) }
-
-    val filterMap = remember(context) {
-        mapOf(
-            context.getString(R.string.s_24_hours) to "-24h",
-            context.getString(R.string.s_7_days) to "-7d",
-            context.getString(R.string.s_30_days) to "-30d"
-        )
-    }
-    val reverseFilterMap = remember(filterMap) {
-        filterMap.entries.associate { it.value to it.key }
-    }
-
-    val stats by statsViewModel.stats.collectAsState()
-    val errorMessage by statsViewModel.errorMessage.collectAsState()
-    val currentFilter by statsViewModel.currentFilter.collectAsState()
-    val isRefreshing by statsViewModel.isRefreshing.collectAsState()
-    val cardStates by statsViewModel.states.collectAsState()
-    val state = rememberPullToRefreshState()
-
-    val infiniteTransition = rememberInfiniteTransition(label = "refresh")
-    val animatedProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "progress"
-    )
-    
-
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = { statsViewModel.refreshStats() },
-        modifier = modifier,
-        state = state,
-        indicator = {
-            PullToRefreshDefaults.IndicatorBox(
-                state = state,
-                isRefreshing = isRefreshing,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 24.dp),
-                containerColor = Color.Transparent,
-                maxDistance = 110.dp
-
-            ) {
-                ContainedLoadingIndicator(
-                    progress = { if (isRefreshing) animatedProgress else state.distanceFraction },
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+    val uiState by statsViewModel.state.collectAsState()
+    val filterOptions = remember {
+        AnalyticsPeriod.entries.map { period ->
+            Locales.getString("timeRangeSelector", "ranges", period.localeKey) to period
         }
+    }
+    val stats = uiState.graph
+    val isRefreshing = uiState.refreshing
+    val cardStates = uiState.cards
+    AdnsPullToRefresh(
+        refreshing = isRefreshing,
+        onRefresh = statsViewModel::refresh,
+        modifier = modifier,
     ) {
         Column(
             modifier = Modifier
@@ -152,26 +107,26 @@ fun StatsScreen(
                 .padding(innerPadding)
                 .statusBarsPadding()
         ) {
-            if (stats == null && errorMessage.isEmpty()) {
+            if (uiState.initialLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularWavyProgressIndicator(modifier = Modifier.size(64.dp))
                 }
-            } else if (errorMessage.isNotEmpty()) {
+            } else if (stats == null && uiState.graphError != null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(errorMessage)
+                    Text(stringResource(R.string.cannot_load_stats))
                 }
             } else {
                 val allowedSeries =
-                    stats!!.data.firstOrNull { it.status == "default" || it.status == "allowed" }?.queries
+                    stats?.data?.firstOrNull { it.status == "default" || it.status == "allowed" }?.queries
                         ?: emptyList()
                 val blockedSeries =
-                    stats!!.data.firstOrNull { it.status == "blocked" }?.queries
+                    stats?.data?.firstOrNull { it.status == "blocked" }?.queries
                         ?: emptyList()
 
                 val size = minOf(allowedSeries.size, blockedSeries.size)
@@ -196,16 +151,24 @@ fun StatsScreen(
 
                     item {
                         TotalQueriesCard(
-                            totalCount = formatInteger(totalQueriesSum),
-                            blockedCount = stringResource(R.string.blocked, formatInteger(blockedQueriesSum), blockedPercent),
+                            totalCount = if (uiState.graphLoading && stats == null) null else formatInteger(totalQueriesSum),
+                            blockedCount = if (uiState.graphLoading && stats == null) null else stringResource(R.string.blocked, formatInteger(blockedQueriesSum), blockedPercent),
                             totalQueriesPoints = totalPoints,
                             blockedQueriesPoints = blockedPoints,
                             maxQueries = maxQueries,
-                            filterOptions = filterOptions,
-                            selectedFilter = reverseFilterMap[currentFilter] ?: stringResource(R.string.s_30_days),
-                            onFilterSelected = { filter ->
-                                statsViewModel.getPeriod(filterMap[filter] ?: "-30d")
+                            filterOptions = filterOptions.map { it.first },
+                            selectedFilter = filterOptions
+                                .first { it.second == uiState.scope.period }
+                                .first,
+                            onFilterSelected = { label ->
+                                filterOptions.firstOrNull { it.first == label }
+                                    ?.second
+                                    ?.let(statsViewModel::selectPeriod)
                             },
+                            devices = uiState.devices,
+                            selectedDeviceId = uiState.scope.deviceId,
+                            onDeviceSelected = statsViewModel::selectDevice,
+                            isLoading = uiState.graphLoading
                         )
                     }
                     items(StatsRegistry.cards, key = { it.key }) { card ->
@@ -224,17 +187,21 @@ fun StatsScreen(
 
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TotalQueriesCard(
-    totalCount: String,
-    blockedCount: String,
+    totalCount: String?,
+    blockedCount: String?,
     totalQueriesPoints: List<Float>,
     blockedQueriesPoints: List<Float>,
     maxQueries: Float,
     filterOptions: List<String>,
     selectedFilter: String,
     onFilterSelected: (String) -> Unit,
+    devices: List<NextDnsDeviceItem>,
+    selectedDeviceId: String?,
+    onDeviceSelected: (String?) -> Unit,
+    isLoading: Boolean = false,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -261,21 +228,21 @@ fun TotalQueriesCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = totalCount,
+                text = totalCount ?: "—",
                 style = MaterialTheme.typography.headlineLarge.copy(fontSize = 42.sp, fontWeight = FontWeight.Black),
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary.copy(alpha = if (totalCount == null) 0.5f else 1f)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Surface(
-                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = if (blockedCount == null) 0.3f else 0.7f),
                 shape = CircleShape
             ) {
                 Text(
-                    text = blockedCount,
+                    text = blockedCount ?: "—",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = if (blockedCount == null) 0.5f else 1f),
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
@@ -290,42 +257,124 @@ fun TotalQueriesCard(
                 if (totalQueriesPoints.size >= 2) {
                     WavyLineChart(
                         points = totalQueriesPoints,
-                        lineColor = MaterialTheme.colorScheme.primary,
+                        lineColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isLoading) 0.5f else 1f),
                         strokeWidth = 5.dp,
                         maxY = maxQueries,
                         modifier = Modifier.fillMaxSize()
                     )
                     WavyLineChart(
                         points = blockedQueriesPoints,
-                        lineColor = MaterialTheme.colorScheme.error,
+                        lineColor = MaterialTheme.colorScheme.error.copy(alpha = if (isLoading) 0.5f else 1f),
                         strokeWidth = 5.dp,
                         maxY = maxQueries,
                         modifier = Modifier.fillMaxSize()
+                    )
+                } else if (isLoading) {
+                    CircularWavyProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center).size(40.dp),
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                filterOptions.forEachIndexed { index, option ->
-                    SegmentedButton(
-                        selected = selectedFilter == option,
-                        onClick = { onFilterSelected(option) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = filterOptions.size),
-                        colors = SegmentedButtonDefaults.colors(
-                            activeContainerColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f),
-                            activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            inactiveContainerColor = Color.Transparent,
-                            inactiveContentColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                            activeBorderColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
-                            inactiveBorderColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
-                        )
+            var expanded by remember { mutableStateOf(false) }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box {
+                    Button(onClick = { expanded = true }) {
+                        Text(selectedFilter, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
                     ) {
-                        Text(option, fontWeight = if (selectedFilter == option) FontWeight.Bold else FontWeight.Normal)
+                        filterOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    expanded = false
+                                    onFilterSelected(option)
+                                },
+                            )
+                        }
                     }
                 }
+                AnalyticsDeviceSelector(
+                    devices = devices,
+                    selectedDeviceId = selectedDeviceId,
+                    onSelected = onDeviceSelected,
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun AnalyticsDeviceSelector(
+    devices: List<NextDnsDeviceItem>,
+    selectedDeviceId: String?,
+    onSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedName = when (selectedDeviceId) {
+        null -> Locales.getString("deviceSelector", "all")
+        "__UNIDENTIFIED__" -> Locales.getString(
+            "analytics",
+            "devices",
+            "unidentified",
+            "name",
+        )
+        else -> devices.firstOrNull { it.id == selectedDeviceId }?.name ?: selectedDeviceId
+    }
+    Box(modifier = modifier) {
+        Button(
+            onClick = { expanded = true },
+        ) {
+            Text(selectedName, fontWeight = FontWeight.Bold)
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(Locales.getString("deviceSelector", "all")) },
+                onClick = {
+                    expanded = false
+                    onSelected(null)
+                },
+            )
+            devices.filterNot { it.id == "__UNIDENTIFIED__" }.forEach { device ->
+                DropdownMenuItem(
+                    text = { Text(device.name ?: device.id) },
+                    onClick = {
+                        expanded = false
+                        onSelected(device.id)
+                    },
+                )
+            }
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        Locales.getString(
+                            "analytics",
+                            "devices",
+                            "unidentified",
+                            "name",
+                        )
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onSelected("__UNIDENTIFIED__")
+                },
+            )
+
         }
     }
 }
@@ -384,7 +433,9 @@ fun BlockedQueryRow(item: NextDnsDomainData) {
 
 
         ListIconView(
-            icon = ListIcon.Url("https://favicons.nextdns.io/${item.domain.toHexId()}@3x.png"),
+            icon = nextDnsFaviconUrl(item.domain)
+                ?.let(ListIcon::Url)
+                ?: ListIcon.None,
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))

@@ -93,6 +93,7 @@ fun SetupScreen(
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val copiedToClipboardMessage = stringResource(R.string.copied_to_clipboard)
 
     LaunchedEffect(profileId) {
         viewModel.load(profileId)
@@ -107,7 +108,7 @@ fun SetupScreen(
                     clipboard.setText(AnnotatedString(effect.text))
                     Toast.makeText(
                         context,
-                        context.getString(R.string.copied_to_clipboard),
+                        copiedToClipboardMessage,
                         Toast.LENGTH_SHORT,
                     ).show()
                 }
@@ -122,6 +123,8 @@ fun SetupScreen(
     SettingsCategoryScreenTemplate(
         onBack = onBack,
         title = Locales.getString("pages", "setup"),
+        refreshing = state.loading && state.content != null,
+        onRefresh = { viewModel.load(profileId, force = true) },
     ) {
         state.error?.let { error ->
             item {
@@ -154,7 +157,7 @@ fun SetupScreen(
                         clipboard.setText(AnnotatedString(value))
                         Toast.makeText(
                             context,
-                            context.getString(R.string.copied_to_clipboard),
+                            copiedToClipboardMessage,
                             Toast.LENGTH_SHORT,
                         ).show()
                     },
@@ -169,7 +172,7 @@ fun SetupScreen(
                         clipboard.setText(AnnotatedString(value))
                         Toast.makeText(
                             context,
-                            context.getString(R.string.copied_to_clipboard),
+                            copiedToClipboardMessage,
                             Toast.LENGTH_SHORT,
                         ).show()
                     },
@@ -198,7 +201,7 @@ fun SetupScreen(
                         clipboard.setText(AnnotatedString(value))
                         Toast.makeText(
                             context,
-                            context.getString(R.string.copied_to_clipboard),
+                            copiedToClipboardMessage,
                             Toast.LENGTH_SHORT,
                         ).show()
                     },
@@ -212,7 +215,7 @@ fun SetupScreen(
                         clipboard.setText(AnnotatedString(value))
                         Toast.makeText(
                             context,
-                            context.getString(R.string.copied_to_clipboard),
+                            copiedToClipboardMessage,
                             Toast.LENGTH_SHORT,
                         ).show()
                     },

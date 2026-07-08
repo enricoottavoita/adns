@@ -8,16 +8,9 @@ import android.util.Log.e
 import com.eyalm.adns.R
 import com.eyalm.adns.data.models.DnsProviders
 import com.eyalm.adns.data.network.ApiClient
-import com.eyalm.adns.data.network.NextDnsAnalytics
 import com.eyalm.adns.data.network.NextDnsCreateProfileRequest
-import com.eyalm.adns.data.network.NextDnsDeviceItem
-import com.eyalm.adns.data.network.NextDnsDomainsResponse
 import com.eyalm.adns.data.network.NextDnsErrorResponse
-import com.eyalm.adns.data.network.NextDnsLoginRequest
-import com.eyalm.adns.data.network.NextDnsLoginResponse
-import com.eyalm.adns.data.network.NextDnsLogsResponse
 import com.eyalm.adns.data.network.NextDnsProfile
-import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
 import com.eyalm.adns.data.network.toHexId
 import com.eyalm.adns.data.nextdns.api.NextDnsErrorParser
 import com.eyalm.adns.data.nextdns.api.requestId
@@ -39,32 +32,14 @@ import com.eyalm.adns.data.nextdns.logs.LogExportResult
 import com.eyalm.adns.data.nextdns.profile.toDuplicateProfilePayload
 import com.eyalm.adns.data.nextdns.settings.ApiBinding
 import com.eyalm.adns.data.nextdns.settings.nestedPayload
+import com.eyalm.adns.data.nextdns.auth.NextDnsSessionManager
 import com.eyalm.adns.domain.nextdns.ApiResult
 import com.google.gson.Gson
-import com.google.gson.JsonArray
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import java.io.IOException
-import retrofit2.Response
-
-data class Blocklist(
-    val id: String,
-    val name: String?,
-    val website: String?,
-    val description: String?,
-    val entries: Int,
-    val updatedOn: String,
-    val isEnabled: Boolean
-)
-
-sealed class LoginResult {
-    object Success : LoginResult()
-    object RequiresTwoFactor : LoginResult()
-    data class Error(val message: String) : LoginResult()
-}
 
 class ApiRepository(private val context: Context) {
 
@@ -72,71 +47,6 @@ class ApiRepository(private val context: Context) {
     val repository = DnsRepository(context)
     private val keyManager = TokenManager.getInstance(context)
 
-
-    suspend fun NextDnsLogin(email: String, password: String, code: String? = null): LoginResult = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val loginRequest = NextDnsLoginRequest(email, password, code)
-            val response = ApiClient.nextDnsAuthApi.login(loginRequest)
-            val responseText = response.body()?.string() ?: response.errorBody()?.string() ?: ""
-
-            if (response.isSuccessful) {
-                if (responseText.trim() == "OK") {
-                    val cookiesList: List<String> = response.headers().values("Set-Cookie")
-
-                    var fullCookieString = ""
-                    for (cookieLine in cookiesList) {
-                        val coreCookie = cookieLine.substringBefore(";")
-                        fullCookieString += "$coreCookie; "
-                    }
-
-                    val apiKey = ApiClient.nextDnsAuthApi
-                        .exchangeCookieForApiKey(fullCookieString.trim())
-                        .body()
-                        ?.key
-                        ?: throw IllegalStateException("Failed to retrieve API key after login")
-                    keyManager.saveApiKey(apiKey)
-                    keyManager.saveEmail(email)
-                    Log.d("ApiRepository", "Login successful, API key saved securely")
-                    LoginResult.Success
-                } else {
-                    LoginResult.Error("Login failed")
-                }
-            } else {
-                val nextDnsResponse = try {
-                    Gson().fromJson(responseText, NextDnsLoginResponse::class.java)
-                } catch (e: Exception) {
-                    null
-                }
-
-                if (nextDnsResponse?.requiresCode == true) {
-                    LoginResult.RequiresTwoFactor
-                } else {
-                    val errorMessage = if (responseText.isNotEmpty()) responseText else context.getString(R.string.login_failed, response.code())
-                    e("ApiRepository", "Login Failed: $errorMessage")
-                    LoginResult.Error(errorMessage)
-                }
-            }
-
-        } catch (e: Exception) {
-            e("ApiRepository", "Network Error during login", e)
-            LoginResult.Error(e.message ?: context.getString(R.string.unknown_error))
-        }
-    }
-
-    suspend fun NextDnsLoginWithApiKey(key: String): LoginResult = withContext(Dispatchers.IO) {
-        try {
-            val response = ApiClient.nextDnsAuthApi.verifyApiKey(key)
-            if (!response.isSuccessful) {
-                return@withContext LoginResult.Error("Invalid API Key")
-            }
-            keyManager.saveApiKey(key)
-            keyManager.saveEmail(context.getString(R.string.api_key_account))
-            LoginResult.Success
-        } catch (e: Exception) {
-            e("ApiRepository", "API Key verification failed", e)
-            LoginResult.Error("Invalid API Key: ${e.localizedMessage ?: "Unknown error"}")
-        }
-    }
 
     fun getCurrentNextDnsProfileId(): String? {
         return sharedPrefs.getString("enhanced_url", null)?.let { url ->
@@ -146,17 +56,6 @@ class ApiRepository(private val context: Context) {
             } else {
                 cleanUrl
             }
-        }
-    }
-
-    suspend fun getNextDnsStats(): NextDnsAnalytics? {
-        val profileId = requireSelectedProfileId()
-
-        return try {
-            ApiClient.nextDnsApi.getAnalytics(profileId, "-30d")
-        } catch (e: Exception) {
-            e("ApiRepository", "Error fetching analytics", e)
-            null
         }
     }
 
@@ -191,6 +90,8 @@ class ApiRepository(private val context: Context) {
             is ApiResult.NetworkFailure -> result
             is ApiResult.SerializationFailure -> result
         }
+    } catch (error: CancellationException) {
+        throw error
     } catch (error: IOException) {
         ApiResult.NetworkFailure(error)
     } catch (error: Exception) {
@@ -232,6 +133,8 @@ class ApiRepository(private val context: Context) {
         requireSignedIn()
         try {
             ApiClient.nextDnsApi.createProfile(NextDnsCreateProfileRequest.withName(name))
+        } catch (error: CancellationException) {
+            throw error
         } catch (e: Exception) {
             e("ApiRepository", "Error creating profile", e)
         }
@@ -240,30 +143,8 @@ class ApiRepository(private val context: Context) {
 
 
 
-    suspend fun getNextDnsStatsGraph(period: String = "-30d"): NextDnsStatsGraphResponse {
-        val profileId = requireSelectedProfileId()
-        return try {
-            val tz = java.util.TimeZone.getDefault().id
-            ApiClient.nextDnsApi.getStatsGraph(profileId, period, "start", tz)
-        } catch (e: Exception) {
-            e("ApiRepository", "Error fetching stats graph", e)
-            throw e
-        }
-    }
-
-    suspend fun getNextDnsDomains(status: String, period: String = "-30d", limit: Int = 10): NextDnsDomainsResponse {
-        val profileId = requireSelectedProfileId()
-        return try {
-            ApiClient.nextDnsApi.getDomains(profileId, status, period, limit)
-        } catch (e: Exception) {
-            e("ApiRepository", "Error fetching domains ($status)", e)
-            throw e
-        }
-    }
-
     fun nextDnsLogOut() {
-        keyManager.destroyApiKey()
-        keyManager.destroyEmail()
+        NextDnsSessionManager.getInstance(context).signedOut()
         repository.setProvider(DnsProviders.ADGUARD.id)
     }
 
@@ -283,8 +164,8 @@ class ApiRepository(private val context: Context) {
     }
 
     suspend fun getScalarSettings(page: String): ApiResult<JsonObject> {
-        val profileId = requireSelectedProfileId()
         return try {
+            val profileId = requireSelectedProfileId()
             val response = ApiClient.nextDnsApi.getPageSettings(profileId, page)
             if (!response.isSuccessful) return response.toServerFailure()
 
@@ -310,6 +191,8 @@ class ApiRepository(private val context: Context) {
                 ApiResult.Success(data.asJsonObject, response.code())
             }
 
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: IOException) {
             ApiResult.NetworkFailure(error)
         } catch (error: Exception) {
@@ -322,8 +205,8 @@ class ApiRepository(private val context: Context) {
         binding: ApiBinding,
         encodedValue: Any,
     ): ApiResult<Unit> {
-        val profileId = requireSelectedProfileId()
         return try {
+            val profileId = requireSelectedProfileId()
             val response = ApiClient.nextDnsApi.patchPageSettings(
                 profileId = profileId,
                 page = binding.page,
@@ -332,35 +215,13 @@ class ApiRepository(private val context: Context) {
 
             response.toEmptyApiResult()
 
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: IOException) {
             ApiResult.NetworkFailure(error)
         } catch (error: Exception) {
             e("ApiRepository", "Error patching ${binding.page}", error)
             ApiResult.SerializationFailure(error)
-        }
-    }
-
-    suspend fun getActiveListItems(page: String, feat: String): List<String> = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val profileId = requireSelectedProfileId()
-            val response = ApiClient.nextDnsApi.getActiveListItems(
-                profileId, page, feat
-            )
-            val dataArray = response.getAsJsonArray("data")
-            dataArray.map { it.asJsonObject.get("id").asString }
-        } catch (e: Exception) {
-            e("ApiRepository", "Error fetching active $page/$feat", e)
-            emptyList()
-        }
-    }
-
-    suspend fun getAvailableCatalog(page: String, feat: String): JsonObject? {
-        return try {
-            requireSignedIn()
-            ApiClient.nextDnsApi.getAvailableCatalog(page, feat)
-        } catch (e: Exception) {
-            e("ApiRepository", "Error fetching catalog $page/$feat", e)
-            null
         }
     }
 
@@ -371,6 +232,8 @@ class ApiRepository(private val context: Context) {
                 profileId, page, feat, mapOf("id" to itemId)
             )
             response.isSuccessful
+        } catch (error: CancellationException) {
+            throw error
         } catch (e: Exception) {
             e("ApiRepository", "Error adding $itemId to $page/$feat", e)
             false
@@ -384,18 +247,12 @@ class ApiRepository(private val context: Context) {
                 profileId, page, feat, itemId.toHexId()
             )
             response.isSuccessful
+        } catch (error: CancellationException) {
+            throw error
         } catch (e: Exception) {
             e("ApiRepository", "Error removing $itemId from $page/$feat", e)
             false
         }
-    }
-
-    suspend fun getCustomListItems(page: String): JsonArray? {
-        return try {
-            val profileId = requireSelectedProfileId()
-            val response = ApiClient.nextDnsApi.getPageSettings(profileId, page)
-            response.body()?.getAsJsonArray("data")
-        } catch (e: Exception) { null }
     }
 
     sealed class AddListResult {
@@ -405,10 +262,11 @@ class ApiRepository(private val context: Context) {
     }
 
     suspend fun addCustomListItem(page: String, domain: String): AddListResult = withContext(Dispatchers.IO) {
-        val profileId = requireSelectedProfileId()
         return@withContext try {
+            val profileId = requireSelectedProfileId()
             val response = ApiClient.nextDnsApi.addCustomItem(profileId, page, mapOf("id" to domain))
-            if (response.isSuccessful) {
+            val responseProblems = response.body()?.let(NextDnsErrorParser::parse).orEmpty()
+            if (response.isSuccessful && responseProblems.isEmpty()) {
                 AddListResult.Success
             } else {
                 val errorBody = response.errorBody()?.string() ?: ""
@@ -418,16 +276,19 @@ class ApiRepository(private val context: Context) {
                     null
                 }
 
-                val isDuplicate = errorResponse?.errors?.any { it.code == "duplicate" } == true
+                val isDuplicate = responseProblems.any { it.code == "duplicate" } ||
+                    errorResponse?.errors?.any { it.code == "duplicate" } == true
                 if (isDuplicate) {
                     AddListResult.AlreadyAdded
                 } else {
                     AddListResult.Error(errorResponse?.errors?.firstOrNull()?.code ?: "unknown")
                 }
             }
+        } catch (error: CancellationException) {
+            throw error
         } catch (e: Exception) {
             Log.e("ApiRepository", "Error adding $domain to $page", e)
-            AddListResult.Error(e.localizedMessage ?: "network_error")
+            AddListResult.Error("network_error")
         }
     }
 
@@ -436,7 +297,11 @@ class ApiRepository(private val context: Context) {
             val profileId = requireSelectedProfileId()
             val response = ApiClient.nextDnsApi.patchCustomItem(profileId, page, domain.toHexId(), mapOf("active" to isActive))
             response.isSuccessful
-        } catch (e: Exception) { false }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun removeCustomListItem(page: String, domain: String): Boolean {
@@ -444,50 +309,10 @@ class ApiRepository(private val context: Context) {
             val profileId = requireSelectedProfileId()
             val response = ApiClient.nextDnsApi.removeCustomItem(profileId, page, domain.toHexId())
             response.isSuccessful
-        } catch (e: Exception) { false }
-    }
-
-    suspend fun getAnalytics(feature: String, params: Map<String, String>): JsonArray? {
-        return try {
-            val profileId = requireSelectedProfileId()
-            ApiClient.nextDnsApi.getAnalyticsFeature(profileId, feature, params)
-                .getAsJsonArray("data")
+        } catch (error: CancellationException) {
+            throw error
         } catch (e: Exception) {
-            e("ApiRepository", "Error fetching analytics/$feature", e)
-            null
-        }
-    }
-
-    suspend fun getNextDnsLogs(
-        cursor: String? = null,
-        search: String? = null,
-        blockedOnly: Boolean = false,
-        rawLogs: Boolean = false,
-        deviceId: String? = null
-    ): NextDnsLogsResponse? = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val profileId = requireSelectedProfileId()
-            ApiClient.nextDnsApi.getLogs(
-                profileId = profileId,
-                cursor = cursor,
-                search = search?.takeIf { it.isNotBlank() },
-                status = if (blockedOnly) "blocked" else null,
-                raw = if (rawLogs) 1 else null,
-                device = deviceId
-            )
-        } catch (e: Exception) {
-            Log.e("ApiRepository", "Failed to load NextDNS logs", e)
-            null
-        }
-    }
-
-    suspend fun getNextDnsDevices(): List<NextDnsDeviceItem> = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val profileId = requireSelectedProfileId()
-            ApiClient.nextDnsApi.getDevices(profileId).data
-        } catch (e: Exception) {
-            Log.e("ApiRepository", "Failed to load NextDNS devices", e)
-            emptyList()
+            false
         }
     }
 
@@ -496,13 +321,15 @@ class ApiRepository(private val context: Context) {
     private suspend fun <T> profileCall( // TODO migrate other methods
         block: suspend (profileId: String) -> ApiResult<T>,
     ): ApiResult<T> = try {
-            val profileId = requireSelectedProfileId()
-            block(profileId)
-        } catch (error: IOException) {
-            ApiResult.NetworkFailure(error)
-        } catch (error: Exception) {
-            ApiResult.SerializationFailure(error)
-        }
+        val profileId = requireSelectedProfileId()
+        block(profileId)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: IOException) {
+        ApiResult.NetworkFailure(error)
+    } catch (error: Exception) {
+        ApiResult.SerializationFailure(error)
+    }
 
     private suspend fun <T> profileCall(
         profileId: String,
@@ -510,6 +337,8 @@ class ApiRepository(private val context: Context) {
     ): ApiResult<T> = try {
         requireSignedIn()
         block()
+    } catch (error: CancellationException) {
+        throw error
     } catch (error: IOException) {
         ApiResult.NetworkFailure(error)
     } catch (error: Exception) {
@@ -524,6 +353,8 @@ class ApiRepository(private val context: Context) {
         val response = try {
             requireSignedIn()
             ApiClient.nextDnsApi.downloadLogs(profileId)
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: IOException) {
             return@withContext LogExportResult.ApiFailure(ApiResult.NetworkFailure(error))
         } catch (error: Exception) {

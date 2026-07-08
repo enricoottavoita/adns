@@ -50,7 +50,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.models.DnsProvider
+import com.eyalm.adns.data.Locales
 import com.eyalm.adns.ui.components.ExpressiveIcon
+import com.eyalm.adns.ui.components.AdnsPullToRefresh
 import com.eyalm.adns.ui.components.ProfilesList
 import com.eyalm.adns.ui.screens.providerLogin.CreateProfileDialog
 import com.eyalm.adns.ui.theme.pageTitle
@@ -99,7 +101,10 @@ fun AccountSettingsScreen(
                     IconButton(onClick = {
                         onBack()
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            Locales.getString("global", "back"),
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -109,12 +114,17 @@ fun AccountSettingsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
-        LazyColumn(
+        AdnsPullToRefresh(
+            refreshing = profileSession.refreshing,
+            onRefresh = { viewModel.refreshProfileSession(force = true) },
             modifier = Modifier
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .fillMaxSize()
+                .padding(innerPadding),
         ) {
+            LazyColumn(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
             item {
                 Text(
                     text = stringResource(R.string.settings_1, stringResource(provider.nameRes)),
@@ -217,6 +227,7 @@ fun AccountSettingsScreen(
                 }
             }
 
+            }
         }
     }
 }

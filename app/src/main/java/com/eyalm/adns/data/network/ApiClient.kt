@@ -2,6 +2,7 @@ package com.eyalm.adns.data.network
 
 import android.content.Context
 import com.eyalm.adns.data.TokenManager
+import com.eyalm.adns.data.nextdns.auth.NextDnsSessionManager
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -21,7 +22,8 @@ object ApiClient {
 
     private lateinit var nextDnsApiInternal: NextDnsApi
     private lateinit var nextDnsIpv4ApiInternal: NextDnsIpv4Api
-    private lateinit var nextDnsAuthApiInternal: NextDnsAuthApi
+    private lateinit var nextDnsCookieAuthApiInternal: NextDnsCookieAuthApi
+    private lateinit var nextDnsApiKeyAuthApiInternal: NextDnsApiKeyAuthApi
     private lateinit var nextDnsLinkIpApiInternal: NextDnsLinkIpApi
 
     /**
@@ -32,6 +34,7 @@ object ApiClient {
         if (::nextDnsApiInternal.isInitialized) return
 
         val tokenManager = TokenManager.getInstance(context.applicationContext)
+        val sessionManager = NextDnsSessionManager.getInstance(context.applicationContext)
 
         val dispatcher = okhttp3.Dispatcher().apply {
             maxRequests = 30
@@ -53,6 +56,11 @@ object ApiClient {
             .build()
 
         val authenticatedClient = baseClient.newBuilder()
+            .addInterceptor(
+                NextDnsSessionExpiryInterceptor(
+                    onUnauthorized = sessionManager::unauthorized,
+                )
+            )
             .addNetworkInterceptor(
                 NextDnsApiKeyInterceptor(
                     apiKeyProvider = tokenManager::getApiKey,
@@ -61,7 +69,7 @@ object ApiClient {
             )
             .build()
 
-        val authFlowClient = baseClient.newBuilder()
+        val cookieAuthClient = baseClient.newBuilder()
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .header("Origin", "https://my.nextdns.io")
@@ -75,8 +83,10 @@ object ApiClient {
             .create(NextDnsApi::class.java)
         nextDnsIpv4ApiInternal = retrofit(IPV4_API_BASE_URL, authenticatedClient)
             .create(NextDnsIpv4Api::class.java)
-        nextDnsAuthApiInternal = retrofit(API_BASE_URL, authFlowClient)
-            .create(NextDnsAuthApi::class.java)
+        nextDnsCookieAuthApiInternal = retrofit(API_BASE_URL, cookieAuthClient)
+            .create(NextDnsCookieAuthApi::class.java)
+        nextDnsApiKeyAuthApiInternal = retrofit(API_BASE_URL, baseClient)
+            .create(NextDnsApiKeyAuthApi::class.java)
         nextDnsLinkIpApiInternal = retrofit(LINK_IP_BASE_URL, baseClient)
             .create(NextDnsLinkIpApi::class.java)
     }
@@ -94,8 +104,11 @@ object ApiClient {
     val nextDnsIpv4Api: NextDnsIpv4Api
         get() = initialized { nextDnsIpv4ApiInternal }
 
-    val nextDnsAuthApi: NextDnsAuthApi
-        get() = initialized { nextDnsAuthApiInternal }
+    val nextDnsCookieAuthApi: NextDnsCookieAuthApi
+        get() = initialized { nextDnsCookieAuthApiInternal }
+
+    val nextDnsApiKeyAuthApi: NextDnsApiKeyAuthApi
+        get() = initialized { nextDnsApiKeyAuthApiInternal }
 
     val nextDnsLinkIpApi: NextDnsLinkIpApi
         get() = initialized { nextDnsLinkIpApiInternal }

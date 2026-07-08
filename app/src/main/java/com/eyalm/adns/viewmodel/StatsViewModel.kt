@@ -1,9 +1,6 @@
 package com.eyalm.adns.viewmodel
-import com.eyalm.adns.R
-
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyalm.adns.data.ApiRepository
@@ -13,136 +10,355 @@ import com.eyalm.adns.data.PercentCard
 import com.eyalm.adns.data.StatRow
 import com.eyalm.adns.data.StatsRegistry
 import com.eyalm.adns.data.models.DnsProvider
+import com.eyalm.adns.data.network.NextDnsDeviceItem
 import com.eyalm.adns.data.network.NextDnsStatsGraphResponse
+import com.eyalm.adns.data.nextdns.analytics.AnalyticsPeriod
+import com.eyalm.adns.data.nextdns.analytics.AnalyticsScope
+import com.eyalm.adns.data.nextdns.analytics.NextDnsAnalyticsRepository
+import com.eyalm.adns.data.nextdns.auth.NextDnsManagementSession
+import com.eyalm.adns.data.nextdns.auth.NextDnsSessionManager
 import com.eyalm.adns.data.parseList
 import com.eyalm.adns.data.parsePercent
+import com.eyalm.adns.domain.nextdns.ApiResult
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
-sealed class CardState {
-    object Loading : CardState()
-    data class ListData(val rows: List<StatRow>) : CardState()
-    data class PercentData(val percent: Float) : CardState()
-    object Error : CardState()
+sealed interface CardState {
+    data object Loading : CardState
+    data class ListData(val rows: List<StatRow>) : CardState
+    data class PercentData(val percent: Float) : CardState
+    data object Error : CardState
 }
 
+data class StatsUiState(
+    val profileId: String? = null,
+    val scope: AnalyticsScope = AnalyticsScope(),
+    val graph: NextDnsStatsGraphResponse? = null,
+    val cards: Map<String, CardState> = emptyMap(),
+    val devices: List<NextDnsDeviceItem> = emptyList(),
+    val initialLoading: Boolean = false,
+    val graphLoading: Boolean = false,
+    val devicesLoading: Boolean = false,
+    val refreshing: Boolean = false,
+    val graphError: ApiResult<*>? = null,
+)
+
 class StatsViewModel(application: Application) : AndroidViewModel(application) {
+    private val apiRepository = ApiRepository(application)
+    private val dnsRepository = DnsRepository(application)
+    private val analyticsRepository = NextDnsAnalyticsRepository()
+    private val sessionManager = NextDnsSessionManager.getInstance(application)
 
-    private val api = ApiRepository(application)
-    private val repository = DnsRepository(application)
+    private val _state = MutableStateFlow(StatsUiState())
+    val state = _state.asStateFlow()
 
-
-    private val _stats = MutableStateFlow<NextDnsStatsGraphResponse?>(null)
-    val stats: StateFlow<NextDnsStatsGraphResponse?> = _stats.asStateFlow()
-
-    private val _currentFilter = MutableStateFlow("")
-    val currentFilter: StateFlow<String> = _currentFilter.asStateFlow()
-
-    private val _errorMessage = MutableStateFlow("")
-    val errorMessage: StateFlow<String> = _errorMessage.asStateFlow()
-
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
-
-    private val graphCache = mutableMapOf<String, NextDnsStatsGraphResponse>()
-
-
-    private val _states = MutableStateFlow<Map<String, CardState>>(emptyMap())
-    val states = _states.asStateFlow()
-
-    private val cardCache = mutableMapOf<String, Map<String, CardState>>()
-    private var loadedPeriod: String? = null
+    private val graphCache = mutableMapOf<AnalyticsScope, NextDnsStatsGraphResponse>()
+    private val cardCache = mutableMapOf<AnalyticsScope, Map<String, CardState>>()
+    private var scopeGeneration = 0L
+    private var deviceGeneration = 0L
+    private var scopeJob: Job? = null
+    private var cardJob: Job? = null
+    private var prefetchJob: Job? = null
 
     init {
         viewModelScope.launch {
-            repository.getDnsUrlFlow().collect {
-                val provider = repository.getSelectedProvider()
-                if (provider is DnsProvider.Enhanced) {
-                    loadAllPeriods()
+            dnsRepository.getDnsUrlFlow().collectLatest {
+                val provider = dnsRepository.getSelectedProvider()
+                val profileId = apiRepository.getCurrentNextDnsProfileId()
+                if (
+                    provider is DnsProvider.Enhanced &&
+                    profileId != null &&
+                    sessionManager.state.value == NextDnsManagementSession.Active
+                ) {
+                    activateProfile(profileId)
                 } else {
-                    _stats.value = null
-                    _currentFilter.value = ""
-                    _errorMessage.value = ""
+                    clearForUnavailableProvider()
+                }
+            }
+        }
+        viewModelScope.launch {
+            sessionManager.state.collect { session ->
+                if (session == NextDnsManagementSession.Expired) {
+                    cancelRequests()
                     graphCache.clear()
                     cardCache.clear()
-                    loadedPeriod = null
-                    _states.value = emptyMap()
+                    _state.value = _state.value.copy(
+                        graph = null,
+                        cards = emptyMap(),
+                        initialLoading = false,
+                        graphLoading = false,
+                        refreshing = false,
+                        graphError = ApiResult.ServerFailure(
+                            status = 401,
+                            problems = emptyList(),
+                        ),
+                    )
+                } else if (
+                    session == NextDnsManagementSession.Active &&
+                    (_state.value.graphError as? ApiResult.ServerFailure)?.status == 401
+                ) {
+                    val profileId = apiRepository.getCurrentNextDnsProfileId()
+                    if (dnsRepository.getSelectedProvider() is DnsProvider.Enhanced && profileId != null) {
+                        activateProfile(profileId)
+                    }
                 }
             }
         }
     }
 
-    private suspend fun loadAllPeriods() {
-        try {
-            graphCache.clear()
-            cardCache.clear()
-            loadedPeriod = null
-            listOf("-24h", "-7d", "-30d").forEach { period ->
-                graphCache[period] = api.getNextDnsStatsGraph(period)
-            }
-            _stats.value = graphCache["-30d"]
-            _currentFilter.value = "-30d"
-            _errorMessage.value = ""
-            Log.d("StatsViewModel", "graph data loaded")
-            loadCards("-30d")
-        } catch (e: Exception) {
-            Log.e("StatsViewModel", "Error loading stats", e)
-            _errorMessage.value = getApplication<Application>().getString(R.string.cannot_load_stats)
-        }
+    fun selectPeriod(period: AnalyticsPeriod) {
+        if (!sessionManager.requestFeatureAccess()) return
+        val current = _state.value
+        if (current.scope.period == period || current.profileId == null) return
+        loadScope(
+            profileId = current.profileId,
+            scope = current.scope.copy(period = period),
+        )
     }
 
-    fun getPeriod(period: String) {
-        _stats.value = graphCache[period]
-        _currentFilter.value = period
-        loadCards(period)
+    fun selectDevice(deviceId: String?) {
+        if (!sessionManager.requestFeatureAccess()) return
+        val current = _state.value
+        if (current.scope.deviceId == deviceId || current.profileId == null) return
+        loadScope(
+            profileId = current.profileId,
+            scope = current.scope.copy(deviceId = deviceId),
+        )
     }
 
-    fun refreshStats() {
+    fun refresh() {
+        if (!sessionManager.requestFeatureAccess()) return
+        val current = _state.value
+        val profileId = current.profileId ?: return
+        loadDevices(profileId)
+        loadScope(
+            profileId = profileId,
+            scope = current.scope,
+            force = true,
+            refreshing = true,
+        )
+    }
+
+    private fun activateProfile(profileId: String) {
+        val current = _state.value
+        if (current.profileId == profileId && (current.initialLoading || current.graph != null)) return
+
+        cancelRequests()
+        graphCache.clear()
+        cardCache.clear()
+        _state.value = StatsUiState(
+            profileId = profileId,
+            scope = AnalyticsScope(),
+            initialLoading = true,
+            graphLoading = true,
+            devicesLoading = true,
+        )
+        loadDevices(profileId)
+        loadScope(profileId, AnalyticsScope())
+    }
+
+    private fun loadDevices(profileId: String) {
+        val generation = ++deviceGeneration
+        _state.update { it.copy(devicesLoading = true) }
         viewModelScope.launch {
-            _isRefreshing.value = true
-            val provider = repository.getSelectedProvider()
-            if (provider is DnsProvider.Enhanced) {
-                cardCache.clear()
-                loadedPeriod = null
-                loadAllPeriods()
-            }
-            _isRefreshing.value = false
-        }
-    }
-
-    private fun loadCards(period: String) {
-        if (period == loadedPeriod) return
-        loadedPeriod = period
-        cardCache[period]?.let { _states.value = it; return }
-
-        val initialStates = StatsRegistry.cards.associate { it.key to CardState.Loading }
-        _states.value = initialStates
-
-        viewModelScope.launch {
-            StatsRegistry.cards.forEach { card ->
-                launch {
-                    val params = card.params + ("from" to period)
-                    val data = api.getAnalytics(card.feature, params)
-                    val cardState = when {
-                        data == null        -> CardState.Error
-                        card is ListCard    -> CardState.ListData(parseList(card, data))
-                        card is PercentCard -> CardState.PercentData(parsePercent(card, data))
-                        else                -> CardState.Error
+            when (val result = analyticsRepository.getDevices(profileId)) {
+                is ApiResult.Success -> {
+                    if (!isCurrentProfile(profileId) || generation != deviceGeneration) return@launch
+                    _state.update { current ->
+                        current.copy(
+                            devices = result.value,
+                            devicesLoading = false,
+                        )
                     }
-                    if (loadedPeriod == period) {
-                        _states.update { current ->
-                            current + (card.key to cardState)
+                    val selectedDevice = _state.value.scope.deviceId
+                    if (
+                        selectedDevice != null &&
+                        selectedDevice != "__UNIDENTIFIED__" &&
+                        result.value.none { it.id == selectedDevice }
+                    ) {
+                        selectDevice(null)
+                    }
+                }
+
+                else -> {
+                    if (isCurrentProfile(profileId) && generation == deviceGeneration) {
+                        _state.update { it.copy(devicesLoading = false) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadScope(
+        profileId: String,
+        scope: AnalyticsScope,
+        force: Boolean = false,
+        refreshing: Boolean = false,
+    ) {
+        val generation = ++scopeGeneration
+        scopeJob?.cancel()
+        cardJob?.cancel()
+        prefetchJob?.cancel()
+
+        val cachedGraph = graphCache[scope]
+        val cachedCards = cardCache[scope]
+        _state.update { current ->
+            current.copy(
+                profileId = profileId,
+                scope = scope,
+                graph = cachedGraph ?: current.graph,
+                cards = cachedCards ?: loadingCards(),
+                initialLoading = cachedGraph == null && current.graph == null,
+                graphLoading = cachedGraph == null || force,
+                refreshing = refreshing,
+                graphError = null,
+            )
+        }
+
+        if (cachedGraph != null && !force) {
+            if (cachedCards == null) loadCards(profileId, scope, generation)
+            prefetchGraphs(profileId, scope, generation)
+            return
+        }
+
+        scopeJob = viewModelScope.launch {
+            when (val result = analyticsRepository.getGraph(profileId, scope)) {
+                is ApiResult.Success -> {
+                    if (!isCurrent(profileId, scope, generation)) return@launch
+                    graphCache[scope] = result.value
+                    _state.update {
+                        it.copy(
+                            graph = result.value,
+                            initialLoading = false,
+                            graphLoading = false,
+                            refreshing = false,
+                            graphError = null,
+                        )
+                    }
+                    loadCards(profileId, scope, generation, force)
+                    prefetchGraphs(profileId, scope, generation)
+                }
+
+                else -> {
+                    if (!isCurrent(profileId, scope, generation)) return@launch
+                    _state.update {
+                        it.copy(
+                            initialLoading = false,
+                            graphLoading = false,
+                            refreshing = false,
+                            graphError = result,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadCards(
+        profileId: String,
+        scope: AnalyticsScope,
+        generation: Long,
+        force: Boolean = false,
+    ) {
+        if (!force) {
+            cardCache[scope]?.let { cached ->
+                if (isCurrent(profileId, scope, generation)) {
+                    _state.update { it.copy(cards = cached) }
+                }
+                return
+            }
+        }
+
+        val initial = loadingCards()
+        _state.update { it.copy(cards = initial) }
+        cardJob = viewModelScope.launch {
+            supervisorScope {
+                StatsRegistry.cards.forEach { card ->
+                    launch {
+                        val result = analyticsRepository.getCardData(
+                            profileId = profileId,
+                            feature = card.feature,
+                            baseParams = card.params,
+                            scope = scope,
+                        )
+                        val cardState = if (result !is ApiResult.Success) {
+                            CardState.Error
+                        } else {
+                            runCatching {
+                                when (card) {
+                                    is ListCard -> CardState.ListData(parseList(card, result.value))
+                                    is PercentCard -> CardState.PercentData(
+                                        parsePercent(card, result.value)
+                                    )
+                                }
+                            }.getOrDefault(CardState.Error)
+                        }
+
+                        val currentCache = cardCache[scope] ?: initial
+                        cardCache[scope] = currentCache + (card.key to cardState)
+                        if (isCurrent(profileId, scope, generation)) {
+                            _state.update { current ->
+                                current.copy(cards = current.cards + (card.key to cardState))
+                            }
                         }
                     }
-                    synchronized(cardCache) {
-                        val currentCache = cardCache[period] ?: initialStates
-                        cardCache[period] = currentCache + (card.key to cardState)
-                    }
                 }
             }
         }
+    }
+
+    private fun prefetchGraphs(
+        profileId: String,
+        selectedScope: AnalyticsScope,
+        generation: Long,
+    ) {
+        prefetchJob = viewModelScope.launch {
+            AnalyticsPeriod.entries
+                .filterNot { it == selectedScope.period }
+                .forEach { period ->
+                    if (!isCurrent(profileId, selectedScope, generation)) return@launch
+                    val scope = selectedScope.copy(period = period)
+                    if (scope in graphCache) return@forEach
+                    when (val result = analyticsRepository.getGraph(profileId, scope)) {
+                        is ApiResult.Success -> graphCache[scope] = result.value
+                        else -> Unit
+                    }
+                }
+        }
+    }
+
+    private fun loadingCards(): Map<String, CardState> =
+        StatsRegistry.cards.associate { it.key to CardState.Loading }
+
+    private fun isCurrent(
+        profileId: String,
+        scope: AnalyticsScope,
+        generation: Long,
+    ): Boolean =
+        generation == scopeGeneration &&
+            _state.value.profileId == profileId &&
+            _state.value.scope == scope
+
+    private fun isCurrentProfile(profileId: String): Boolean =
+        _state.value.profileId == profileId
+
+    private fun clearForUnavailableProvider() {
+        cancelRequests()
+        graphCache.clear()
+        cardCache.clear()
+        _state.value = StatsUiState()
+    }
+
+    private fun cancelRequests() {
+        scopeGeneration++
+        deviceGeneration++
+        scopeJob?.cancel()
+        cardJob?.cancel()
+        prefetchJob?.cancel()
     }
 }

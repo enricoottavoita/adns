@@ -8,10 +8,6 @@ data class NextDnsLoginRequest(
     @SerializedName("code") val code: String? = null
 )
 
-data class NextDnsLoginResponse(
-    @SerializedName("requiresCode") val requiresCode: Boolean? = null
-)
-
 data class NextDnsCreateApiKeyResponse(
     @SerializedName("apiKey") val key: String
 )

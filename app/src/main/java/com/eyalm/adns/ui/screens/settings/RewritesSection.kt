@@ -38,12 +38,13 @@ import com.eyalm.adns.viewmodel.RewritesViewModel
 @Composable
 fun RewritesSection(
     profileId: String,
-    canEdit: Boolean
+    canEdit: Boolean,
+    refreshRevision: Long = 0,
 ) {
     val viewModel: RewritesViewModel = viewModel(key = "rewrites-$profileId")
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(profileId) {
+    LaunchedEffect(profileId, refreshRevision) {
         viewModel.load()
     }
 

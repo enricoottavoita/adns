@@ -59,6 +59,7 @@ import com.eyalm.adns.data.nextdns.settings.SettingId
 import com.eyalm.adns.data.nextdns.settings.SettingsPageSpec
 import com.eyalm.adns.data.nextdns.settings.StringSelectSettingSpec
 import com.eyalm.adns.ui.components.ExpressiveListItem
+import com.eyalm.adns.ui.components.AdnsPullToRefresh
 import com.eyalm.adns.ui.components.ListIconView
 import com.eyalm.adns.ui.components.dialogs.BaseDialog
 import com.eyalm.adns.ui.theme.pageTitle
@@ -80,7 +81,7 @@ fun GenericCategoryScreen(
     settingsPage: SettingsPageSpec,
     profileState: ProfileSessionState,
     lists: List<NextDnsResourceSpec> = emptyList(),
-    extraContent: (@Composable (profileState: ProfileSessionState) -> Unit)? = null,
+    extraContent: (@Composable (profileState: ProfileSessionState, refreshRevision: Long) -> Unit)? = null,
     onBack: () -> Unit,
     onLogsCleared: () -> Unit = {},
 ) {
@@ -159,7 +160,10 @@ fun GenericCategoryScreen(
                 title = { },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            Locales.getString("global", "back"),
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -185,12 +189,17 @@ fun GenericCategoryScreen(
                 CircularWavyProgressIndicator(modifier = Modifier.size(64.dp))
             }
         } else {
-            LazyColumn(
+            AdnsPullToRefresh(
+                refreshing = scalarSettings.refreshing,
+                onRefresh = { viewModel.loadScalarSettings(settingsPage, force = true) },
                 modifier = Modifier
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                    .fillMaxSize()
+                    .padding(innerPadding),
             ) {
+                LazyColumn(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
                 item {
                     Text(
                         text = title,
@@ -290,13 +299,14 @@ fun GenericCategoryScreen(
                 }
 
                 extraContent?.let { content ->
-                    item { content(profileState) }
+                    item { content(profileState, scalarSettings.refreshRevision) }
                 }
 
                 item {
                     Spacer(Modifier.height(12.dp))
                 }
 
+                }
             }
         }
     }

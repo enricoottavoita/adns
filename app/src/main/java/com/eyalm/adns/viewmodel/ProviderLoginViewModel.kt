@@ -1,10 +1,7 @@
 package com.eyalm.adns.viewmodel
-import com.eyalm.adns.R
-
 
 import android.app.Application
-import android.util.Log
-import android.widget.Toast
+import android.util.Patterns
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -12,82 +9,177 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyalm.adns.ProviderLoginActivity
 import com.eyalm.adns.data.ApiRepository
-import com.eyalm.adns.data.LoginResult
 import com.eyalm.adns.data.network.NextDnsProfile
+import com.eyalm.adns.data.nextdns.auth.NextDnsAuthRepository
+import com.eyalm.adns.data.nextdns.auth.NextDnsLoginFailure
+import com.eyalm.adns.data.nextdns.auth.NextDnsLoginField
+import com.eyalm.adns.data.nextdns.auth.NextDnsLoginMode
+import com.eyalm.adns.data.nextdns.auth.NextDnsLoginOutcome
+import com.eyalm.adns.data.nextdns.auth.NextDnsLoginUiState
+import com.eyalm.adns.data.nextdns.auth.fieldErrors
+import com.eyalm.adns.data.nextdns.auth.isValidTwoFactorCode
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ProviderLoginViewModel(application: Application) : AndroidViewModel(application)  {
-
+class ProviderLoginViewModel(application: Application) : AndroidViewModel(application) {
     private val apiRepository = ApiRepository(application)
-    private val dnsRepository = com.eyalm.adns.data.DnsRepository(application)
-
-
+    private val authRepository = NextDnsAuthRepository(application)
 
     var currentStep by mutableStateOf(ProviderLoginActivity.Step.LOGIN)
         private set
 
-    var showTwoFactorAuth by mutableStateOf(false)
+    var profiles by mutableStateOf(emptyList<NextDnsProfile>())
         private set
 
-    var profiles by mutableStateOf(listOf<NextDnsProfile>())
-        private set
+    private val _state = MutableStateFlow(NextDnsLoginUiState())
+    val state = _state.asStateFlow()
 
+    fun submit() {
+        val current = _state.value
+        if (current.submitting) return
 
-    fun nextStep() {
+        val validation = validate(current)
+        if (validation.isNotEmpty()) {
+            _state.value = current.copy(
+                fieldErrors = validation,
+                generalError = null,
+            )
+            return
+        }
 
-        currentStep = when (currentStep) {
-            ProviderLoginActivity.Step.LOGIN -> ProviderLoginActivity.Step.LOADING
-            ProviderLoginActivity.Step.LOADING -> ProviderLoginActivity.Step.PROFILE
-            ProviderLoginActivity.Step.PROFILE -> ProviderLoginActivity.Step.SUCCESS
-            ProviderLoginActivity.Step.SUCCESS -> ProviderLoginActivity.Step.LOGIN
+        viewModelScope.launch {
+            _state.value = current.copy(
+                submitting = true,
+                fieldErrors = emptyMap(),
+                generalError = null,
+            )
 
+            when (val result = authRepository.login(current)) {
+                NextDnsLoginOutcome.RequiresTwoFactor -> {
+                    _state.update {
+                        it.copy(
+                            requiresTwoFactor = true,
+                            code = "",
+                            submitting = false,
+                        )
+                    }
+                }
+
+                is NextDnsLoginOutcome.Authenticated -> {
+                    profiles = result.profiles
+                    clearSecrets()
+                    currentStep = ProviderLoginActivity.Step.PROFILE
+                }
+
+                is NextDnsLoginOutcome.Failure -> {
+                    _state.update { state ->
+                        val fieldErrors = result.fieldErrors(state.mode)
+                        state.copy(
+                            submitting = false,
+                            fieldErrors = fieldErrors,
+                            generalError = result.reason.takeIf { fieldErrors.isEmpty() },
+                        )
+                    }
+                }
+            }
         }
     }
 
-    suspend fun providerLogin(email: String, password: String, providrId: String, code: String? = null) {
-        currentStep = ProviderLoginActivity.Step.LOADING
-        if (providrId == "nextdns") {
-            val result = apiRepository.NextDnsLogin(email, password, code)
-            when (result) {
-                is LoginResult.Success -> {
-                    val profilesList = apiRepository.getNextDnsProfiles()
-                    profiles = profilesList
-                    Log.d(
-                        "ProviderLoginViewModel",
-                        "Login attempt for provider $providrId with email $email"
+    internal fun validate(
+        state: NextDnsLoginUiState,
+    ): Map<NextDnsLoginField, NextDnsLoginFailure> = buildMap {
+        when (state.mode) {
+            NextDnsLoginMode.Password -> {
+                when {
+                    state.email.isBlank() -> put(
+                        NextDnsLoginField.Email,
+                        NextDnsLoginFailure.Required,
                     )
-                    nextStep()
+
+                    !Patterns.EMAIL_ADDRESS.matcher(state.email.trim()).matches() -> put(
+                        NextDnsLoginField.Email,
+                        NextDnsLoginFailure.InvalidEmail,
+                    )
                 }
-                is LoginResult.RequiresTwoFactor -> {
-                    showTwoFactorAuth = true
-                    currentStep = ProviderLoginActivity.Step.LOGIN
-                    Toast.makeText(getApplication(), getApplication<Application>().getString(R.string.twofactor_authentication_required), Toast.LENGTH_SHORT).show()
+                if (state.password.isBlank()) {
+                    put(NextDnsLoginField.Password, NextDnsLoginFailure.Required)
                 }
-                is LoginResult.Error -> {
-                    Toast.makeText(getApplication(), result.message, Toast.LENGTH_LONG).show()
-                    currentStep = ProviderLoginActivity.Step.LOGIN
+                if (
+                    state.requiresTwoFactor &&
+                    !isValidTwoFactorCode(state.code)
+                ) {
+                    put(
+                        NextDnsLoginField.Code,
+                        if (state.code.isBlank()) {
+                            NextDnsLoginFailure.Required
+                        } else {
+                            NextDnsLoginFailure.InvalidTwoFactorFormat
+                        }
+                    )
+                }
+            }
+
+            NextDnsLoginMode.ApiKey -> {
+                if (state.apiKey.isBlank()) {
+                    put(NextDnsLoginField.ApiKey, NextDnsLoginFailure.Required)
                 }
             }
         }
     }
 
-    suspend fun providerLoginWithApiKey(apiKey: String, providrId: String) {
-        currentStep = ProviderLoginActivity.Step.LOADING
-        if (providrId == "nextdns") {
-            val result = apiRepository.NextDnsLoginWithApiKey(apiKey)
-            when (result) {
-                is LoginResult.Success -> {
-                    val profilesList = apiRepository.getNextDnsProfiles()
-                    profiles = profilesList
-                    nextStep()
-                }
-                is LoginResult.Error -> {
-                    Toast.makeText(getApplication(), result.message, Toast.LENGTH_LONG).show()
-                    currentStep = ProviderLoginActivity.Step.LOGIN
-                }
+    fun setMode(mode: NextDnsLoginMode) {
+        if (_state.value.submitting || _state.value.mode == mode) return
+        authRepository.discardPendingKey()
+        _state.update {
+            it.copy(
+                mode = mode,
+                requiresTwoFactor = false,
+                code = "",
+                fieldErrors = emptyMap(),
+                generalError = null,
+            )
+        }
+    }
 
-                else -> {}
+    fun onEmailChanged(value: String) {
+        authRepository.discardPendingKey()
+        updateField(NextDnsLoginField.Email) { copy(email = value) }
+    }
+
+    fun onPasswordChanged(value: String) {
+        authRepository.discardPendingKey()
+        updateField(NextDnsLoginField.Password) { copy(password = value) }
+    }
+
+    fun onCodeChanged(value: String) {
+        updateField(NextDnsLoginField.Code) {
+            copy(code = value.filter(Char::isDigit).take(6))
+        }
+    }
+
+    fun onApiKeyChanged(value: String) {
+        updateField(NextDnsLoginField.ApiKey) { copy(apiKey = value) }
+    }
+
+    private fun updateField(
+        field: NextDnsLoginField,
+        update: NextDnsLoginUiState.() -> NextDnsLoginUiState,
+    ) {
+        if (_state.value.submitting) return
+        _state.update { current ->
+            val fieldsToClear = if (
+                field == NextDnsLoginField.Email || field == NextDnsLoginField.Password
+            ) {
+                setOf(NextDnsLoginField.Email, NextDnsLoginField.Password)
+            } else {
+                setOf(field)
             }
+            current.update().copy(
+                fieldErrors = current.fieldErrors - fieldsToClear,
+                generalError = null,
+            )
         }
     }
 
@@ -103,4 +195,13 @@ class ProviderLoginViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    private fun clearSecrets() {
+        _state.value = NextDnsLoginUiState()
+        authRepository.discardPendingKey()
+    }
+
+    override fun onCleared() {
+        clearSecrets()
+        super.onCleared()
+    }
 }

@@ -57,12 +57,13 @@ import java.util.Locale
 @Composable
 fun RecreationSection(
     profileId: String,
-    canEdit: Boolean
+    canEdit: Boolean,
+    refreshRevision: Long = 0,
 ) {
     val viewModel: RecreationViewModel = viewModel(key = "recreation-$profileId")
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(profileId) {
+    LaunchedEffect(profileId, refreshRevision) {
         viewModel.load()
     }
 

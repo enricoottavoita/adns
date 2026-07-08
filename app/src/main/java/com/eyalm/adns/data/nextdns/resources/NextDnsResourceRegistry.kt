@@ -10,6 +10,11 @@ data class NextDnsResourceItem(
     val name: String,
     val description: String? = null,
     val icon: ListIcon = ListIcon.None,
+    val website: String? = null,
+    val entries: Int? = null,
+    val updatedOn: String? = null,
+    val spamhausRank: Int = 0,
+    val sourceIndex: Int = 0,
 )
 
 enum class NextDnsResourceSource {

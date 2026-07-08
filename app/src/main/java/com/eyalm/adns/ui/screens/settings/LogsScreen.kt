@@ -1,5 +1,8 @@
 package com.eyalm.adns.ui.screens.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +45,7 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,13 +61,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.R
-import com.eyalm.adns.data.network.toHexId
+import com.eyalm.adns.data.nextdns.logs.DomainRuleList
 import com.eyalm.adns.data.nextdns.model.ListIcon
+import com.eyalm.adns.data.nextdns.model.nextDnsFaviconUrl
 import com.eyalm.adns.ui.components.ExpressiveIcon
 import com.eyalm.adns.ui.components.ExpressiveListItem
 import com.eyalm.adns.ui.components.ListIconView
 import com.eyalm.adns.ui.screens.SettingsCategoryScreenTemplate
+import com.eyalm.adns.viewmodel.LogsEffect
 import com.eyalm.adns.viewmodel.LogsViewModel
+import com.eyalm.adns.viewmodel.PendingLogAction
 import com.eyalm.adns.viewmodel.ProfileSessionState
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -78,25 +85,44 @@ fun LogsScreen(
     val profileId = profileState.selectedProfileId ?: return
     val viewModel: LogsViewModel = viewModel(key = "logs-$profileId")
     val context = LocalContext.current
-    val items = viewModel.logsList
-    val devices = viewModel.devicesList
+    val copiedToClipboardMessage = stringResource(R.string.copied_to_clipboard)
+    val state by viewModel.state.collectAsState()
+    val items = state.items
+    val devices = state.devices
 
     var showConfig by remember(profileId) { mutableStateOf(true) }
     var expandedId by remember(profileId) { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(profileId, profileState.logsRevision) {
-        viewModel.refresh()
+        viewModel.load(profileId, force = profileState.logsRevision > 0)
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.uiEvent.collect { message ->
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is LogsEffect.CopyDomain -> {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                        as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("domain", effect.domain))
+                    Toast.makeText(
+                        context,
+                        copiedToClipboardMessage,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+
+                is LogsEffect.Message -> {
+                    Toast.makeText(context, effect.value, Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
     SettingsCategoryScreenTemplate(
         onBack = onBack,
         title = stringResource(R.string.logs),
+        refreshing = state.refreshing,
+        onRefresh = viewModel::refresh,
     ) {
             item {
                 Row(
@@ -106,7 +132,7 @@ fun LogsScreen(
                         .height(IntrinsicSize.Min)
                 ) {
                     TextField(
-                        value = viewModel.searchQuery,
+                        value = state.query.search,
                         onValueChange = {
                             viewModel.updateSearchQuery(it)
                         },
@@ -147,7 +173,7 @@ fun LogsScreen(
                 item {
                     Spacer(Modifier.height(8.dp))
                     ExpressiveListItem(
-                        onClick = { viewModel.setBlocked(!viewModel.blockedSelected) },
+                        onClick = { viewModel.setBlocked(!state.query.blockedOnly) },
                         title = stringResource(R.string.blocked_only),
                         description = stringResource(R.string.show_only_blocked_items),
                         icon = Icons.Filled.Block,
@@ -157,7 +183,7 @@ fun LogsScreen(
                                 onCheckedChange = { onClick() }
                             )
                         },
-                        isSelected = viewModel.blockedSelected,
+                        isSelected = state.query.blockedOnly,
                         isFirst = true,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -165,7 +191,7 @@ fun LogsScreen(
                 item {
                     ExpressiveListItem(
                         onClick = {
-                            viewModel.setRaw(!viewModel.rawEnabled)
+                            viewModel.setRaw(!state.query.raw)
                         },
                         title = stringResource(R.string.raw_mode),
                         description = stringResource(R.string.show_raw_dns_logs),
@@ -176,18 +202,23 @@ fun LogsScreen(
                                 onCheckedChange = { onClick() }
                             )
                         },
-                        isSelected = viewModel.rawEnabled,
+                        isSelected = state.query.raw,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                 }
                 item {
                     var expanded by remember { mutableStateOf(false) }
+                    val selectedDeviceName = when (state.query.deviceId) {
+                        null -> stringResource(R.string.all_devices)
+                        "__UNIDENTIFIED__" -> stringResource(R.string.unknown_devices)
+                        else -> devices.find { it.id == state.query.deviceId }?.name ?: state.query.deviceId!!
+                    }
 
                     ExpressiveListItem(
                         onClick = {
                             expanded = true
                         },
-                        title = stringResource(R.string.change_device),
+                        title = selectedDeviceName,
                         description = stringResource(R.string.filter_the_logs_to_a_certain_device),
                         icon = Icons.Filled.Devices,
                         interactiveItem = { _, _ ->
@@ -196,7 +227,7 @@ fun LogsScreen(
                                     .wrapContentSize(Alignment.TopEnd)
                             ) {
                                 IconButton(onClick = { expanded = true }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Show options")
+                                    Icon(Icons.Default.Edit, contentDescription = null)
                                 }
 
                                 DropdownMenu(
@@ -210,16 +241,14 @@ fun LogsScreen(
                                             viewModel.setDevice(null)
                                         }
                                     )
-                                    devices.forEach { deviceItem ->
-                                        deviceItem.name?.let {
-                                            DropdownMenuItem(
-                                                text = { Text(it) },
-                                                onClick = {
-                                                    expanded = false
-                                                    viewModel.setDevice(deviceItem.id)
-                                                }
-                                            )
-                                        }
+                                    devices.filterNot { it.id == "__UNIDENTIFIED__" }.forEach { deviceItem ->
+                                        DropdownMenuItem(
+                                            text = { Text(deviceItem.name ?: deviceItem.id) },
+                                            onClick = {
+                                                expanded = false
+                                                viewModel.setDevice(deviceItem.id)
+                                            }
+                                        )
                                     }
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.unknown_devices)) },
@@ -238,7 +267,7 @@ fun LogsScreen(
 
             item { Spacer(Modifier.height(8.dp)) }
 
-            if (viewModel.isInitialLoading) {
+            if (state.initialLoading && items.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -267,7 +296,7 @@ fun LogsScreen(
             } else {
                 items(items.size) { index ->
                     val log = items[index]
-                    LaunchedEffect(index) {
+                    LaunchedEffect(state.query, index, items.size) {
                         if (index >= items.size - 5) {
                             viewModel.fetchNextPage()
                         }
@@ -278,7 +307,9 @@ fun LogsScreen(
                         indicatorColor = if (log.status == "blocked") MaterialTheme.colorScheme.error else null,
                         altLeadingContent = {
                             ListIconView(
-                                icon = ListIcon.Url("https://favicons.nextdns.io/${log.domain.toHexId()}@3x.png"),
+                                icon = nextDnsFaviconUrl(log.domain)
+                                    ?.let(ListIcon::Url)
+                                    ?: ListIcon.None,
                                 modifier = Modifier.size(24.dp)
                             )
                         },
@@ -300,20 +331,26 @@ fun LogsScreen(
                                         }
                                     }
 
-                                    DetailRow(label = "Time", value = formatLogTimestamp(log.timestamp))
+                                    DetailRow(
+                                        label = stringResource(R.string.time),
+                                        value = formatLogTimestamp(log.timestamp),
+                                    )
 
                                     val encryptionStr = if (log.encrypted) stringResource(R.string.encrypted) else stringResource(
                                         R.string.unencrypted
                                     )
-                                    DetailRow(label = stringResource(R.string.protocol), value = "${log.protocol}$encryptionStr")
+                                    DetailRow(
+                                        label = stringResource(R.string.protocol),
+                                        value = "${log.protocol} · $encryptionStr",
+                                    )
 
                                     log.clientIp?.let { ip ->
                                         DetailRow(label = stringResource(R.string.client_ip), value = ip)
                                     }
 
-                                    if (viewModel.rawEnabled) {
+                                    if (state.query.raw) {
                                         log.type?.let {
-                                            DetailRow(label = "Type", value = it)
+                                            DetailRow(label = stringResource(R.string.type), value = it)
 
                                         }
                                     }
@@ -325,42 +362,74 @@ fun LogsScreen(
                                     Spacer(Modifier.height(8.dp))
 
 
-                                    val options = listOf(stringResource(R.string.allow),
-                                        stringResource(
-                                            R.string.deny
-                                        ), stringResource(R.string.copy))
-                                    val unCheckedIcons =
-                                        listOf(
-                                            Icons.Filled.Check,
-                                            Icons.Filled.Block,
-                                            Icons.Filled.CopyAll
-                                        )
+                                    val canEdit = profileState.capabilities.canEditSettings
+                                    val actionLabels = buildList {
+                                        if (canEdit) {
+                                            add(stringResource(R.string.allow))
+                                            add(stringResource(R.string.deny))
+                                        }
+                                        add(stringResource(R.string.copy))
+                                    }
+                                    val actionIcons = buildList {
+                                        if (canEdit) {
+                                            add(Icons.Filled.Check)
+                                            add(Icons.Filled.Block)
+                                        }
+                                        add(Icons.Filled.CopyAll)
+                                    }
+                                    val actionRules = buildList {
+                                        if (canEdit) {
+                                            add(DomainRuleList.Allow)
+                                            add(DomainRuleList.Deny)
+                                        }
+                                        add(null)
+                                    }
 
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                                     ) {
-                                        options.forEachIndexed { index, label ->
+                                        actionLabels.forEachIndexed { index, label ->
                                             val shapes = when (index) {
                                                 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                                options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                                actionLabels.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                                                 else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                                             }
+                                            val rule = actionRules[index]
+                                            val pending = rule?.let {
+                                                PendingLogAction(log.domain, it) in state.pendingActions
+                                            } ?: false
+
                                             ToggleButton(
                                                 checked = true,
-                                                onCheckedChange = { },
+                                                onCheckedChange = {
+                                                    if (rule != null) {
+                                                        viewModel.applyRule(
+                                                            rule,
+                                                            log.domain,
+                                                            canEdit = true,
+                                                        )
+                                                    } else {
+                                                        viewModel.copyDomain(log.domain)
+                                                    }
+                                                },
+                                                enabled = !pending,
                                                 modifier = Modifier.weight(1f),
-                                                shapes = shapes.copy(checkedShape = shapes.shape), // TODO logic
+                                                shapes = shapes.copy(checkedShape = shapes.shape),
                                                 colors = ToggleButtonDefaults.toggleButtonColors(
                                                     checkedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                                                     checkedContentColor = MaterialTheme.colorScheme.onSurface
                                                 )
                                             ) {
-                                                Icon(
-                                                    unCheckedIcons[index],
-                                                    contentDescription = "Localized description",
-                                                )
+                                                if (pending) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(18.dp),
+                                                        strokeWidth = 2.dp,
+                                                    )
+                                                } else {
+                                                    Icon(actionIcons[index], contentDescription = null)
+                                                }
                                                 Spacer(Modifier.size(ToggleButtonDefaults.IconSpacing))
                                                 Text(label)
                                             }
@@ -376,7 +445,7 @@ fun LogsScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                 }
 
-                if (viewModel.isFetchingMore) {
+                if (state.loadingNextPage) {
                     item {
                         Box(
                             modifier = Modifier
@@ -421,7 +490,7 @@ fun formatLogTimestamp(timestamp: String): String {
         val parsed = ZonedDateTime.parse(timestamp)
         val formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
         parsed.format(formatter)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         timestamp
     }
 }

@@ -21,6 +21,15 @@ fun Response<JsonObject>.toJsonApiResult(): ApiResult<JsonObject> {
     }
 }
 
+fun <T : Any> Response<T>.toBodyApiResult(): ApiResult<T> {
+    if (!isSuccessful) return toServerFailure()
+    val value = body()
+        ?: return ApiResult.SerializationFailure(
+            IllegalStateException("Missing response body")
+        )
+    return ApiResult.Success(value, code())
+}
+
 fun Response<*>.toEmptyApiResult(): ApiResult<Unit> {
     if (!isSuccessful) return toServerFailure()
 

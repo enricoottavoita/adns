@@ -169,11 +169,12 @@ fun SettingsTabRouter(
                     settingsPage = NextDnsSettingRegistry.parentalControl,
                     profileState = profileSession,
                     lists = NextDnsResourceRegistry.parentalControl,
-                    extraContent = { profile ->
+                    extraContent = { profile, refreshRevision ->
                         profile.selected?.let { selected ->
                             RecreationSection(
                                 profileId = selected.id,
                                 canEdit = profile.capabilities.canEditSettings,
+                                refreshRevision = refreshRevision,
                             )
                         }
                     },
@@ -187,15 +188,19 @@ fun SettingsTabRouter(
                     title = stringResource(R.string.settings),
                     settingsPage = NextDnsSettingRegistry.settings,
                     profileState = profileSession,
-                    extraContent = { profile ->
+                    extraContent = { profile, refreshRevision ->
                         profile.selected?.let { selected ->
                             RewritesSection(
                                 profileId = selected.id,
                                 canEdit = profile.capabilities.canEditSettings,
+                                refreshRevision = refreshRevision,
                             )
                             if (profile.capabilities.canManageAccess) {
                                 Spacer(Modifier.height(20.dp))
-                                AccessSection(profileId = selected.id)
+                                AccessSection(
+                                    profileId = selected.id,
+                                    refreshRevision = refreshRevision,
+                                )
                             }
                             Spacer(Modifier.height(20.dp))
                             ProfileActionsSection(

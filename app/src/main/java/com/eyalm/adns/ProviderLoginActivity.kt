@@ -16,29 +16,19 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyalm.adns.data.models.DnsProviders
-import com.eyalm.adns.ui.components.OnboardingTemplate
 import com.eyalm.adns.ui.screens.providerLogin.Login
 import com.eyalm.adns.ui.screens.providerLogin.ProfileOptionPage
 import com.eyalm.adns.ui.screens.providerLogin.SuccessLoginScreen
 import com.eyalm.adns.ui.theme.AdnsTheme
 import com.eyalm.adns.viewmodel.ProviderLoginViewModel
-import kotlinx.coroutines.launch
 
 class ProviderLoginActivity : ComponentActivity() {
-    enum class Step { LOGIN , LOADING, PROFILE, SUCCESS }
+    enum class Step { LOGIN, PROFILE, SUCCESS }
 
     private var lastAppliedLang: String? = null
 
@@ -53,7 +43,6 @@ class ProviderLoginActivity : ComponentActivity() {
             recreate()
         }
     }
-
 
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -91,7 +80,10 @@ class ProviderLoginActivity : ComponentActivity() {
                                         ) +
                                         slideIntoContainer(
                                             towards = AnimatedContentTransitionScope.SlideDirection.Up,
-                                            animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                            animationSpec = tween(
+                                                300,
+                                                easing = FastOutSlowInEasing
+                                            ),
                                             initialOffset = { it / 8 }
                                         )) togetherWith
                                         (fadeOut(animationSpec = tween(90)) +
@@ -128,50 +120,25 @@ class ProviderLoginActivity : ComponentActivity() {
                             Step.LOGIN -> {
                                 Login(
                                     provider = provider,
-                                    twoFactorAuthVisible = viewModel.showTwoFactorAuth,
-                                    onNextClick = { email, password, code ->
-                                        lifecycleScope.launch {
-                                            viewModel.providerLogin(email, password, provider.id, code)
-                                        }
-                                    },
-                                    onApiKeyClick = { apiKey ->
-                                        lifecycleScope.launch {
-                                            viewModel.providerLoginWithApiKey(apiKey, provider.id)
-                                        }
-                                    },
                                     onBackClick = {
                                         finish()
                                     }
                                 )
                             }
-                            Step.LOADING -> {
-                                BackHandler {  }
-                                OnboardingTemplate(
-                                    content = { },
-                                    bottomBarContent = {
-                                        LinearWavyProgressIndicator(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp)
-                                        )
-                                    }
-                                )
-                            }
+
                             Step.PROFILE -> {
-                                BackHandler {  }
+                                BackHandler { }
                                 ProfileOptionPage(
                                     profiles = profiles,
                                     onNextClick = { profile ->
                                         viewModel.setProfile(profile)
                                     },
                                     createProfile = { name ->
-                                        lifecycleScope.launch {
-                                            viewModel.createProfile(name)
-                                        }
-
+                                        viewModel.createProfile(name)
                                     }
                                 )
                             }
+
                             Step.SUCCESS -> {
                                 BackHandler { finish() }
                                 SuccessLoginScreen(
@@ -185,21 +152,5 @@ class ProviderLoginActivity : ComponentActivity() {
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting3(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview3() {
-    AdnsTheme {
-        Greeting3("Android")
     }
 }
